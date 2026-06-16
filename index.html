@@ -215,22 +215,6 @@
         .powerup-tag.wings { color: #87ceeb; }
         .powerup-tag.shield { color: #3498db; }
 
-        /* ===== 场景名称显示 ===== */
-        #sceneDisplay {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: clamp(24px, 6vw, 40px);
-            color: #fff;
-            text-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
-            font-weight: bold;
-            opacity: 0;
-            transition: opacity 0.5s;
-            z-index: 6;
-            pointer-events: none;
-        }
-
         /* ===== 隐藏类 ===== */
         .hidden {
             opacity: 0;
@@ -249,9 +233,6 @@
         <!-- 道具状态显示 -->
         <div id="powerupDisplay"></div>
 
-        <!-- 场景名称显示 -->
-        <div id="sceneDisplay"></div>
-
         <!-- 开始界面 -->
         <div id="startScreen">
             <h1>🏃 跳怪兽 🐾</h1>
@@ -263,7 +244,7 @@
                 每局 shitou 和多多会轮流扮演小人与怪兽哦！
             </div>
             <button id="startBtn">开始游戏</button>
-            <div class="version">v1.2.0</div>
+            <div class="version">v1.2.1</div>
         </div>
 
         <!-- 结束界面 -->
@@ -287,7 +268,6 @@
         const gameOverScreen = document.getElementById('gameOverScreen');
         const scoreDisplay = document.getElementById('scoreDisplay');
         const powerupDisplay = document.getElementById('powerupDisplay');
-        const sceneDisplay = document.getElementById('sceneDisplay');
         const finalScoreEl = document.getElementById('finalScore');
         const highScoreEl = document.getElementById('highScore');
         const startBtn = document.getElementById('startBtn');
@@ -384,8 +364,6 @@
         let currentScene = 'night';
         let sceneTimer = 0;
         let nextSceneTime = 0;
-        let sceneName = '';
-        let sceneNameTimer = 0;
         let rainDrops = [];
         let lightningTimer = 0;
         let cityBuildings = [];
@@ -1386,10 +1364,6 @@
                 next = SCENES[Math.floor(Math.random() * SCENES.length)].id;
             } while (next === prev);
             currentScene = next;
-            sceneName = SCENES.find(s => s.id === currentScene).name;
-            sceneNameTimer = 180; // 显示3秒
-            sceneDisplay.textContent = sceneName;
-            sceneDisplay.style.opacity = '1';
 
             // 初始化场景元素
             if (currentScene === 'rain') {
@@ -1432,12 +1406,6 @@
 
         function updateScene() {
             sceneTimer++;
-            if (sceneNameTimer > 0) {
-                sceneNameTimer--;
-                if (sceneNameTimer <= 0) {
-                    sceneDisplay.style.opacity = '0';
-                }
-            }
             if (sceneTimer >= nextSceneTime) {
                 switchScene();
             }
@@ -2044,8 +2012,6 @@
             currentScene = 'night';
             sceneTimer = 0;
             nextSceneTime = SCENE_SWITCH_MIN + Math.random() * (SCENE_SWITCH_MAX - SCENE_SWITCH_MIN);
-            sceneNameTimer = 0;
-            sceneDisplay.style.opacity = '0';
             rainDrops = [];
             lightningTimer = 0;
             cityBuildings = [];
