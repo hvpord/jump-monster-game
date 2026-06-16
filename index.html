@@ -244,7 +244,7 @@
                 每局 shitou 和多多会轮流扮演小人与怪兽哦！
             </div>
             <button id="startBtn">开始游戏</button>
-            <div class="version">v1.1</div>
+            <div class="version">v1.1.1</div>
         </div>
 
         <!-- 结束界面 -->
@@ -316,6 +316,7 @@
         const COMBO_GAP_MAX = 220;
         const SPAWN_MARGIN_RIGHT = 850;
         const SAFE_ZONE_AFTER_JUMP = 120;
+        const SAFE_FLYING_MONSTER_GAP = 220;
 
         const SPAWN_INTERVAL_MIN = 120;
         const SPAWN_INTERVAL_MAX = 240;
@@ -765,6 +766,64 @@
             }
         }
 
+        // ===== 石块通用绘制（更真实的岩石） =====
+        function drawRock(ctx, size) {
+            ctx.save();
+            ctx.shadowColor = 'rgba(0,0,0,0.4)';
+            ctx.shadowBlur = 5;
+            ctx.shadowOffsetY = 3;
+
+            // 主体：不规则多边形
+            ctx.fillStyle = '#7f8c8d';
+            ctx.beginPath();
+            ctx.moveTo(-size * 0.85, -size * 0.25);
+            ctx.lineTo(-size * 0.45, -size * 0.65);
+            ctx.lineTo(size * 0.15, -size * 0.55);
+            ctx.lineTo(size * 0.75, -size * 0.15);
+            ctx.lineTo(size * 0.65, size * 0.35);
+            ctx.lineTo(size * 0.1, size * 0.65);
+            ctx.lineTo(-size * 0.55, size * 0.5);
+            ctx.lineTo(-size * 0.8, size * 0.1);
+            ctx.closePath();
+            ctx.fill();
+
+            // 暗部
+            ctx.fillStyle = 'rgba(0,0,0,0.2)';
+            ctx.beginPath();
+            ctx.moveTo(size * 0.15, -size * 0.55);
+            ctx.lineTo(size * 0.75, -size * 0.15);
+            ctx.lineTo(size * 0.65, size * 0.35);
+            ctx.lineTo(size * 0.1, size * 0.65);
+            ctx.lineTo(-size * 0.55, size * 0.5);
+            ctx.lineTo(-size * 0.8, size * 0.1);
+            ctx.lineTo(-size * 0.55, -size * 0.1);
+            ctx.lineTo(size * 0.1, -size * 0.25);
+            ctx.closePath();
+            ctx.fill();
+
+            // 高光
+            ctx.fillStyle = 'rgba(255,255,255,0.25)';
+            ctx.beginPath();
+            ctx.moveTo(-size * 0.55, -size * 0.15);
+            ctx.lineTo(-size * 0.35, -size * 0.4);
+            ctx.lineTo(size * 0.05, -size * 0.35);
+            ctx.lineTo(size * 0.25, -size * 0.1);
+            ctx.lineTo(-size * 0.1, -size * 0.05);
+            ctx.closePath();
+            ctx.fill();
+
+            // 裂纹
+            ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(size * 0.05, size * 0.15);
+            ctx.lineTo(-size * 0.15, size * 0.05);
+            ctx.lineTo(-size * 0.05, -size * 0.15);
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
         // ===== 道具类 =====
         class Item {
             constructor(type, x) {
@@ -846,16 +905,10 @@
             }
 
             drawStone(cx, cy) {
-                ctx.fillStyle = '#7f8c8d';
-                ctx.shadowColor = '#000';
-                ctx.shadowBlur = 4;
-                ctx.beginPath();
-                ctx.ellipse(cx, cy, 12, 9, 0, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.fillStyle = '#95a5a6';
-                ctx.beginPath();
-                ctx.ellipse(cx - 3, cy - 2, 4, 3, 0, 0, Math.PI * 2);
-                ctx.fill();
+                ctx.save();
+                ctx.translate(cx, cy);
+                drawRock(ctx, 14);
+                ctx.restore();
             }
 
             drawShield(cx, cy) {
@@ -928,14 +981,7 @@
                 ctx.save();
                 ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
                 ctx.rotate(this.rotation);
-                ctx.fillStyle = '#7f8c8d';
-                ctx.beginPath();
-                ctx.ellipse(0, 0, this.width / 2, this.height / 2, 0, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.fillStyle = '#95a5a6';
-                ctx.beginPath();
-                ctx.ellipse(-3, -2, 5, 3, 0, 0, Math.PI * 2);
-                ctx.fill();
+                drawRock(ctx, 12);
                 ctx.restore();
             }
 
@@ -993,7 +1039,17 @@
         // ===== 飞行怪兽生成 =====
         function spawnFlyingMonster() {
             const currentSpeed = getCurrentMonsterSpeed();
-            monsters.push(new Monster('flying', SPAWN_MARGIN_RIGHT, currentSpeed));
+            const spawnX = SPAWN_MARGIN_RIGHT;
+
+            // 避免飞行怪兽与任何地面怪兽在水平方向上重叠，确保玩家有可走路径
+            const tooClose = monsters.some(m => {
+                if (m.isKnocked || m.type === 'flying') return false;
+                return Math.abs(m.x - spawnX) < SAFE_FLYING_MONSTER_GAP;
+            });
+
+            if (!tooClose) {
+                monsters.push(new Monster('flying', spawnX, currentSpeed));
+            }
             flyingSpawnTimer = 0;
             nextFlyingSpawnTime = FLYING_MONSTER_SPAWN_MIN + Math.random() * (FLYING_MONSTER_SPAWN_MAX - FLYING_MONSTER_SPAWN_MIN);
         }
