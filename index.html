@@ -215,6 +215,22 @@
         .powerup-tag.wings { color: #87ceeb; }
         .powerup-tag.shield { color: #3498db; }
 
+        /* ===== 场景名称显示 ===== */
+        #sceneDisplay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: clamp(24px, 6vw, 40px);
+            color: #fff;
+            text-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+            font-weight: bold;
+            opacity: 0;
+            transition: opacity 0.5s;
+            z-index: 6;
+            pointer-events: none;
+        }
+
         /* ===== 隐藏类 ===== */
         .hidden {
             opacity: 0;
@@ -233,6 +249,9 @@
         <!-- 道具状态显示 -->
         <div id="powerupDisplay"></div>
 
+        <!-- 场景名称显示 -->
+        <div id="sceneDisplay"></div>
+
         <!-- 开始界面 -->
         <div id="startScreen">
             <h1>🏃 跳怪兽 🐾</h1>
@@ -244,7 +263,7 @@
                 每局 shitou 和多多会轮流扮演小人与怪兽哦！
             </div>
             <button id="startBtn">开始游戏</button>
-            <div class="version">v1.1.2</div>
+            <div class="version">v1.2.0</div>
         </div>
 
         <!-- 结束界面 -->
@@ -268,6 +287,7 @@
         const gameOverScreen = document.getElementById('gameOverScreen');
         const scoreDisplay = document.getElementById('scoreDisplay');
         const powerupDisplay = document.getElementById('powerupDisplay');
+        const sceneDisplay = document.getElementById('sceneDisplay');
         const finalScoreEl = document.getElementById('finalScore');
         const highScoreEl = document.getElementById('highScore');
         const startBtn = document.getElementById('startBtn');
@@ -335,6 +355,17 @@
         const STONE_SPEED = 9;
         const DEATH_ANIMATION_DURATION = 80;
 
+        const SCENES = [
+            { id: 'grassland', name: '晴空草原' },
+            { id: 'city', name: '城市街道' },
+            { id: 'desert', name: '沙漠' },
+            { id: 'night', name: '夜晚' },
+            { id: 'railway', name: '铁路' },
+            { id: 'rain', name: '大雨' }
+        ];
+        const SCENE_SWITCH_MIN = 15 * 60;  // 15秒（按60fps）
+        const SCENE_SWITCH_MAX = 30 * 60;  // 30秒
+
         // ===== 游戏状态变量 =====
         let gameState = 'start';
         let score = 0;
@@ -348,6 +379,18 @@
         let nextFlyingSpawnTime = 0;
         let passedMonsters = 0;
         let lastPlayerWasShitou = null;  // 用于头像角色严格轮换
+
+        // ===== 场景系统 =====
+        let currentScene = 'night';
+        let sceneTimer = 0;
+        let nextSceneTime = 0;
+        let sceneName = '';
+        let sceneNameTimer = 0;
+        let rainDrops = [];
+        let lightningTimer = 0;
+        let cityBuildings = [];
+        let desertCamelX = 0;
+        let trainX = -300;
 
         // ===== 角色对象 =====
         const player = {
@@ -1324,6 +1367,146 @@
 
         // ===== 绘制背景 =====
         function drawBackground() {
+            switch (currentScene) {
+                case 'grassland': drawGrassland(); break;
+                case 'city': drawCity(); break;
+                case 'desert': drawDesert(); break;
+                case 'night': drawNight(); break;
+                case 'railway': drawRailway(); break;
+                case 'rain': drawRain(); break;
+                default: drawNight();
+            }
+        }
+
+        // ===== 场景切换 =====
+        function switchScene() {
+            const prev = currentScene;
+            let next;
+            do {
+                next = SCENES[Math.floor(Math.random() * SCENES.length)].id;
+            } while (next === prev);
+            currentScene = next;
+            sceneName = SCENES.find(s => s.id === currentScene).name;
+            sceneNameTimer = 180; // 显示3秒
+            sceneDisplay.textContent = sceneName;
+            sceneDisplay.style.opacity = '1';
+
+            // 初始化场景元素
+            if (currentScene === 'rain') {
+                rainDrops = [];
+                for (let i = 0; i < 120; i++) {
+                    rainDrops.push({
+                        x: Math.random() * GAME_WIDTH,
+                        y: Math.random() * GAME_HEIGHT,
+                        len: Math.random() * 15 + 10,
+                        speed: Math.random() * 8 + 12
+                    });
+                }
+            }
+            if (currentScene === 'city') {
+                cityBuildings = [];
+                let bx = 0;
+                while (bx < GAME_WIDTH * 2) {
+                    const bw = Math.random() * 40 + 30;
+                    const bh = Math.random() * 120 + 80;
+                    const windows = [];
+                    for (let wy = 15; wy < bh - 10; wy += 20) {
+                        for (let wx = 8; wx < bw - 5; wx += 18) {
+                            windows.push({ x: wx, y: wy, lit: Math.random() > 0.3 });
+                        }
+                    }
+                    cityBuildings.push({ x: bx, width: bw, height: bh, windows });
+                    bx += bw + Math.random() * 15 + 5;
+                }
+            }
+            if (currentScene === 'desert') {
+                desertCamelX = GAME_WIDTH + Math.random() * 200;
+            }
+            if (currentScene === 'railway') {
+                trainX = -400 - Math.random() * 300;
+            }
+
+            sceneTimer = 0;
+            nextSceneTime = SCENE_SWITCH_MIN + Math.random() * (SCENE_SWITCH_MAX - SCENE_SWITCH_MIN);
+        }
+
+        function updateScene() {
+            sceneTimer++;
+            if (sceneNameTimer > 0) {
+                sceneNameTimer--;
+                if (sceneNameTimer <= 0) {
+                    sceneDisplay.style.opacity = '0';
+                }
+            }
+            if (sceneTimer >= nextSceneTime) {
+                switchScene();
+            }
+
+            // 铁路火车移动
+            if (currentScene === 'railway') {
+                trainX += 1.5;
+                if (trainX > GAME_WIDTH + 200) {
+                    trainX = -400 - Math.random() * 300;
+                }
+            }
+
+            // 沙漠骆驼移动
+            if (currentScene === 'desert') {
+                desertCamelX -= 0.8;
+                if (desertCamelX < -150) {
+                    desertCamelX = GAME_WIDTH + Math.random() * 300 + 100;
+                }
+            }
+
+            // 城市建筑滚动
+            if (currentScene === 'city') {
+                const moveSpeed = getCurrentMonsterSpeed() * 0.15;
+                cityBuildings.forEach(b => { b.x -= moveSpeed; });
+                if (cityBuildings.length > 0 && cityBuildings[0].x + cityBuildings[0].width < -50) {
+                    const first = cityBuildings.shift();
+                    const last = cityBuildings[cityBuildings.length - 1];
+                    first.x = last.x + last.width + Math.random() * 15 + 5;
+                    first.width = Math.random() * 40 + 30;
+                    first.height = Math.random() * 120 + 80;
+                    cityBuildings.push(first);
+                }
+            }
+
+            // 雨滴更新
+            if (currentScene === 'rain') {
+                rainDrops.forEach(drop => {
+                    drop.y += drop.speed;
+                    drop.x -= 2;
+                    if (drop.y > GAME_HEIGHT) {
+                        drop.y = -drop.len;
+                        drop.x = Math.random() * GAME_WIDTH;
+                    }
+                });
+                if (Math.random() < 0.005) {
+                    lightningTimer = Math.random() * 10 + 5;
+                }
+                if (lightningTimer > 0) lightningTimer--;
+            }
+        }
+
+        function drawMoon(x, y, r) {
+            ctx.save();
+            ctx.fillStyle = '#f5f5f5';
+            ctx.shadowColor = '#fff';
+            ctx.shadowBlur = 20;
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = 'rgba(200,200,200,0.3)';
+            ctx.beginPath();
+            ctx.arc(x - 8, y + 5, r * 0.25, 0, Math.PI * 2);
+            ctx.arc(x + 10, y - 8, r * 0.2, 0, Math.PI * 2);
+            ctx.arc(x + 6, y + 12, r * 0.18, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function drawStars() {
             ctx.fillStyle = '#fff';
             bgStars.forEach(star => {
                 const alpha = 0.5 + Math.sin(star.twinkle + frameCount * 0.05) * 0.5;
@@ -1333,8 +1516,10 @@
                 ctx.fill();
             });
             ctx.globalAlpha = 1;
+        }
 
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+        function drawClouds(alpha = 0.9) {
+            ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
             clouds.forEach(cloud => {
                 ctx.beginPath();
                 ctx.ellipse(cloud.x, cloud.y, cloud.width * 0.5, 20, 0, 0, Math.PI * 2);
@@ -1346,22 +1531,179 @@
                 ctx.ellipse(cloud.x + 20, cloud.y + 5, cloud.width * 0.3, 15, 0, 0, Math.PI * 2);
                 ctx.fill();
             });
+        }
 
-            ctx.fillStyle = '#2d5016';
+        function drawGround(color, stripeColor, stripeWidth = 20, stripeGap = 40) {
+            ctx.fillStyle = color;
             ctx.fillRect(0, GROUND_Y, GAME_WIDTH, GAME_HEIGHT - GROUND_Y);
 
-            ctx.fillStyle = '#3d6b1f';
-            groundOffset = (groundOffset + getCurrentMonsterSpeed()) % 40;
-            for (let x = -groundOffset; x < GAME_WIDTH; x += 40) {
-                ctx.fillRect(x, GROUND_Y, 20, 4);
+            ctx.fillStyle = stripeColor;
+            groundOffset = (groundOffset + getCurrentMonsterSpeed()) % stripeGap;
+            for (let x = -groundOffset; x < GAME_WIDTH; x += stripeGap) {
+                ctx.fillRect(x, GROUND_Y, stripeWidth, 4);
             }
 
-            ctx.strokeStyle = '#4a8525';
+            ctx.strokeStyle = stripeColor;
             ctx.lineWidth = 2;
+            ctx.globalAlpha = 0.5;
             ctx.beginPath();
             ctx.moveTo(0, GROUND_Y);
             ctx.lineTo(GAME_WIDTH, GROUND_Y);
             ctx.stroke();
+            ctx.globalAlpha = 1;
+        }
+
+        function drawHills(color, heightFactor, speedFactor, yOffset) {
+            ctx.fillStyle = color;
+            const offset = (groundOffset * speedFactor) % GAME_WIDTH;
+            ctx.beginPath();
+            ctx.moveTo(0, GROUND_Y);
+            for (let x = 0; x <= GAME_WIDTH; x += 30) {
+                const wx = x + offset;
+                const h = Math.sin(wx * 0.01) * heightFactor + Math.sin(wx * 0.03) * heightFactor * 0.4;
+                ctx.lineTo(x, GROUND_Y - yOffset - Math.abs(h));
+            }
+            ctx.lineTo(GAME_WIDTH, GROUND_Y);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        // ===== 晴空草原 =====
+        function drawGrassland() {
+            const grad = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT);
+            grad.addColorStop(0, '#87CEEB');
+            grad.addColorStop(0.6, '#B0E0E6');
+            grad.addColorStop(1, '#98FB98');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+            drawSun(GAME_WIDTH - 80, 60, 28);
+            drawClouds(0.95);
+            drawHills('#7cb342', 30, 0.3, 70);
+            drawHills('#558b2f', 20, 0.5, 40);
+            drawGround('#4a8f29', '#6bbf4a', 20, 40);
+        }
+
+        // ===== 城市街道 =====
+        function drawCity() {
+            const grad = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT);
+            grad.addColorStop(0, '#87CEFA');
+            grad.addColorStop(0.5, '#B0C4DE');
+            grad.addColorStop(1, '#E0E0E0');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+            drawClouds(0.7);
+
+            // 高楼大厦
+            cityBuildings.forEach(b => {
+                ctx.fillStyle = '#546e7a';
+                ctx.fillRect(b.x, GROUND_Y - b.height, b.width, b.height);
+                // 窗户
+                ctx.fillStyle = '#fff59d';
+                b.windows.forEach(w => {
+                    if (w.lit) {
+                        ctx.fillRect(b.x + w.x, GROUND_Y - b.height + w.y, 8, 10);
+                    }
+                });
+                // 楼体高光
+                ctx.fillStyle = 'rgba(255,255,255,0.1)';
+                ctx.fillRect(b.x + 4, GROUND_Y - b.height, 6, b.height);
+            });
+
+            drawGround('#455a64', '#90a4ae', 25, 35);
+            // 马路白线
+            ctx.fillStyle = '#fff';
+            groundOffset = (groundOffset + getCurrentMonsterSpeed()) % 60;
+            for (let x = -groundOffset; x < GAME_WIDTH; x += 60) {
+                ctx.fillRect(x, GROUND_Y + 25, 30, 4);
+            }
+        }
+
+        // ===== 沙漠 =====
+        function drawDesert() {
+            const grad = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT);
+            grad.addColorStop(0, '#FFD54F');
+            grad.addColorStop(0.5, '#FFCC80');
+            grad.addColorStop(1, '#F4A460');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+            drawSun(GAME_WIDTH - 100, 80, 40, '#ff9800');
+
+            // 沙丘
+            drawHills('#e6c278', 35, 0.25, 60);
+            drawHills('#d4a86b', 25, 0.4, 35);
+
+            // 骆驼剪影
+            drawCamel(desertCamelX, GROUND_Y - 70);
+
+            // 仙人掌
+            drawCactus(120, GROUND_Y - 50);
+            drawCactus(GAME_WIDTH - 150, GROUND_Y - 45);
+
+            drawGround('#d2b48c', '#c19a6b', 18, 45);
+        }
+
+        function drawCamel(x, y) {
+            ctx.save();
+            ctx.fillStyle = '#8d6e63';
+            ctx.beginPath();
+            // 身体
+            ctx.ellipse(x, y, 35, 12, 0, 0, Math.PI * 2);
+            // 驼峰
+            ctx.ellipse(x - 5, y - 14, 10, 14, 0, 0, Math.PI * 2);
+            // 脖子
+            ctx.ellipse(x + 28, y - 18, 6, 18, -0.4, 0, Math.PI * 2);
+            // 头
+            ctx.ellipse(x + 40, y - 32, 9, 7, 0, 0, Math.PI * 2);
+            ctx.fill();
+            // 腿
+            ctx.strokeStyle = '#8d6e63';
+            ctx.lineWidth = 4;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(x - 20, y + 10); ctx.lineTo(x - 20, y + 32);
+            ctx.moveTo(x - 5, y + 10); ctx.lineTo(x - 5, y + 32);
+            ctx.moveTo(x + 10, y + 10); ctx.lineTo(x + 10, y + 32);
+            ctx.moveTo(x + 25, y + 10); ctx.lineTo(x + 25, y + 32);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        function drawCactus(x, y) {
+            ctx.save();
+            ctx.fillStyle = '#2e7d32';
+            // 主干
+            ctx.fillRect(x - 6, y - 40, 12, 45);
+            // 分枝
+            ctx.beginPath();
+            ctx.moveTo(x - 6, y - 25);
+            ctx.quadraticCurveTo(x - 22, y - 28, x - 22, y - 12);
+            ctx.lineTo(x - 22, y - 5);
+            ctx.quadraticCurveTo(x - 22, y - 18, x - 6, y - 15);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(x + 6, y - 30);
+            ctx.quadraticCurveTo(x + 22, y - 33, x + 22, y - 17);
+            ctx.lineTo(x + 22, y - 10);
+            ctx.quadraticCurveTo(x + 22, y - 23, x + 6, y - 20);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        // ===== 夜晚（原版风格） =====
+        function drawNight() {
+            const grad = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT);
+            grad.addColorStop(0, '#0f3460');
+            grad.addColorStop(0.6, '#16213e');
+            grad.addColorStop(1, '#1a1a2e');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+            drawStars();
+            drawMoon(80, 70, 22);
+            drawClouds(0.25);
 
             ctx.fillStyle = 'rgba(15, 52, 96, 0.5)';
             ctx.beginPath();
@@ -1372,6 +1714,116 @@
             ctx.lineTo(GAME_WIDTH, GROUND_Y);
             ctx.closePath();
             ctx.fill();
+
+            drawGround('#2d5016', '#3d6b1f', 20, 40);
+        }
+
+        // ===== 铁路 =====
+        function drawRailway() {
+            const grad = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT);
+            grad.addColorStop(0, '#FF7F50');
+            grad.addColorStop(0.4, '#F4A460');
+            grad.addColorStop(1, '#2c3e50');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+            drawSun(GAME_WIDTH - 70, 90, 35, '#ff5722');
+
+            // 远山
+            drawHills('#5d4037', 40, 0.2, 80);
+
+            // 火车
+            drawTrain(trainX, GROUND_Y - 110);
+
+            // 铁轨枕木
+            ctx.fillStyle = '#5d4037';
+            groundOffset = (groundOffset + getCurrentMonsterSpeed()) % 35;
+            for (let x = -groundOffset; x < GAME_WIDTH; x += 35) {
+                ctx.fillRect(x, GROUND_Y - 8, 20, 10);
+            }
+
+            // 铁轨
+            ctx.strokeStyle = '#90a4ae';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(0, GROUND_Y - 6);
+            ctx.lineTo(GAME_WIDTH, GROUND_Y - 6);
+            ctx.moveTo(0, GROUND_Y + 2);
+            ctx.lineTo(GAME_WIDTH, GROUND_Y + 2);
+            ctx.stroke();
+
+            drawGround('#795548', '#8d6e63', 16, 40);
+        }
+
+        function drawTrain(x, y) {
+            ctx.save();
+            ctx.fillStyle = '#37474f';
+            // 车厢
+            ctx.fillRect(x, y, 90, 55);
+            ctx.fillRect(x + 95, y + 5, 70, 50);
+            ctx.fillRect(x + 170, y + 5, 70, 50);
+            // 窗户
+            ctx.fillStyle = '#b3e5fc';
+            ctx.fillRect(x + 10, y + 10, 25, 18);
+            ctx.fillRect(x + 45, y + 10, 25, 18);
+            ctx.fillRect(x + 105, y + 15, 20, 15);
+            ctx.fillRect(x + 135, y + 15, 20, 15);
+            ctx.fillRect(x + 180, y + 15, 20, 15);
+            ctx.fillRect(x + 210, y + 15, 20, 15);
+            // 车轮
+            ctx.fillStyle = '#263238';
+            [x + 20, x + 65, x + 115, x + 155, x + 195, x + 230].forEach(wx => {
+                ctx.beginPath();
+                ctx.arc(wx, y + 60, 8, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            // 烟雾
+            ctx.fillStyle = 'rgba(255,255,255,0.4)';
+            ctx.beginPath();
+            ctx.arc(x - 10, y - 10, 10, 0, Math.PI * 2);
+            ctx.arc(x - 25, y - 20, 14, 0, Math.PI * 2);
+            ctx.arc(x - 45, y - 30, 18, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        // ===== 大雨 =====
+        function drawRain() {
+            const grad = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT);
+            grad.addColorStop(0, '#1a1a2e');
+            grad.addColorStop(0.5, '#2c3e50');
+            grad.addColorStop(1, '#1e3a28');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+            // 闪电闪光
+            if (lightningTimer > 0) {
+                ctx.fillStyle = `rgba(255, 255, 255, ${lightningTimer / 20 * 0.6})`;
+                ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+            }
+
+            drawClouds(0.4);
+
+            // 雨滴
+            ctx.strokeStyle = 'rgba(173, 216, 230, 0.6)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            rainDrops.forEach(drop => {
+                ctx.moveTo(drop.x, drop.y);
+                ctx.lineTo(drop.x - 3, drop.y + drop.len);
+            });
+            ctx.stroke();
+
+            // 积水反光
+            ctx.fillStyle = 'rgba(255,255,255,0.05)';
+            groundOffset = (groundOffset + getCurrentMonsterSpeed()) % 80;
+            for (let x = -groundOffset; x < GAME_WIDTH; x += 80) {
+                ctx.beginPath();
+                ctx.ellipse(x + 30, GROUND_Y + 25, 25, 5, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            drawGround('#1e3a28', '#2e5a3a', 22, 40);
         }
 
         // ===== 碰撞检测工具 =====
@@ -1521,6 +1973,7 @@
             ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
             updateBackground();
+            updateScene();
             drawBackground();
 
             updatePlayer();
@@ -1586,6 +2039,18 @@
             monsters = [];
             items = [];
             projectiles = [];
+
+            // 初始化场景系统
+            currentScene = 'night';
+            sceneTimer = 0;
+            nextSceneTime = SCENE_SWITCH_MIN + Math.random() * (SCENE_SWITCH_MAX - SCENE_SWITCH_MIN);
+            sceneNameTimer = 0;
+            sceneDisplay.style.opacity = '0';
+            rainDrops = [];
+            lightningTimer = 0;
+            cityBuildings = [];
+            desertCamelX = 0;
+            trainX = -300;
 
             player.y = GROUND_Y - PLAYER_HEIGHT + GROUND_Y_OFFSET;
             player.vy = 0;
