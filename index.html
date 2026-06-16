@@ -244,7 +244,7 @@
                 每局 shitou 和多多会轮流扮演小人与怪兽哦！
             </div>
             <button id="startBtn">开始游戏</button>
-            <div class="version">v1.2.1</div>
+            <div class="version">v1.2.2</div>
         </div>
 
         <!-- 结束界面 -->
@@ -1455,6 +1455,17 @@
                 }
                 if (lightningTimer > 0) lightningTimer--;
             }
+        }
+
+        function drawSun(x, y, r, color = '#f1c40f') {
+            ctx.save();
+            ctx.fillStyle = color;
+            ctx.shadowColor = color;
+            ctx.shadowBlur = 30;
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
         }
 
         function drawMoon(x, y, r) {
