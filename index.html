@@ -244,7 +244,7 @@
                 每局 shitou 和多多会轮流扮演小人与怪兽哦！
             </div>
             <button id="startBtn">开始游戏</button>
-            <div class="version">v1.1.1</div>
+            <div class="version">v1.1.2</div>
         </div>
 
         <!-- 结束界面 -->
@@ -320,6 +320,7 @@
 
         const SPAWN_INTERVAL_MIN = 120;
         const SPAWN_INTERVAL_MAX = 240;
+        const DENSITY_INCREMENT = 0.1;  // 每10分怪物密度线性增长10%
 
         const COLLISION_MARGIN_X = 8;
         const COLLISION_MARGIN_Y = 10;
@@ -1033,7 +1034,8 @@
             }
 
             spawnTimer = 0;
-            nextSpawnTime = SPAWN_INTERVAL_MIN + Math.random() * (SPAWN_INTERVAL_MAX - SPAWN_INTERVAL_MIN);
+            const intervalMul = getSpawnIntervalMultiplier();
+            nextSpawnTime = (SPAWN_INTERVAL_MIN + Math.random() * (SPAWN_INTERVAL_MAX - SPAWN_INTERVAL_MIN)) * intervalMul;
         }
 
         // ===== 飞行怪兽生成 =====
@@ -1051,7 +1053,8 @@
                 monsters.push(new Monster('flying', spawnX, currentSpeed));
             }
             flyingSpawnTimer = 0;
-            nextFlyingSpawnTime = FLYING_MONSTER_SPAWN_MIN + Math.random() * (FLYING_MONSTER_SPAWN_MAX - FLYING_MONSTER_SPAWN_MIN);
+            const flyIntervalMul = getSpawnIntervalMultiplier();
+            nextFlyingSpawnTime = (FLYING_MONSTER_SPAWN_MIN + Math.random() * (FLYING_MONSTER_SPAWN_MAX - FLYING_MONSTER_SPAWN_MIN)) * flyIntervalMul;
         }
 
         // ===== 道具生成 =====
@@ -1067,6 +1070,12 @@
         function getCurrentMonsterSpeed() {
             const level = Math.floor(score / 10);
             return MONSTER_SPEED_BASE * Math.pow(1.05, level);
+        }
+
+        // ===== 获取当前怪兽生成间隔倍数（线性密度：每10分密度+10%，间隔缩短） =====
+        function getSpawnIntervalMultiplier() {
+            const level = Math.floor(score / 10);
+            return 1 / (1 + DENSITY_INCREMENT * level);
         }
 
         // ===== 角色跳跃 =====
