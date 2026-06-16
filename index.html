@@ -116,6 +116,14 @@
             box-shadow: 0 0 30px rgba(233, 69, 96, 0.6);
         }
 
+        #startScreen .version {
+            position: absolute;
+            bottom: clamp(8px, 2vh, 15px);
+            right: clamp(10px, 2.5vw, 20px);
+            font-size: clamp(12px, 2.5vw, 14px);
+            color: #a0a0a0;
+        }
+
         /* ===== 结束界面 ===== */
         #gameOverScreen {
             position: absolute;
@@ -236,6 +244,7 @@
                 每局 shitou 和多多会轮流扮演小人与怪兽哦！
             </div>
             <button id="startBtn">开始游戏</button>
+            <div class="version">v1.1</div>
         </div>
 
         <!-- 结束界面 -->
@@ -622,17 +631,6 @@
 
                 ctx.restore();
 
-                // 黄色怪兽：添加金色光晕
-                if (this.type === 'yellow') {
-                    ctx.save();
-                    ctx.strokeStyle = '#f1c40f';
-                    ctx.lineWidth = 3;
-                    ctx.shadowColor = '#f1c40f';
-                    ctx.shadowBlur = 10;
-                    ctx.strokeRect(this.x - 3, this.y - 3, this.width + 6, this.height + 6);
-                    ctx.restore();
-                }
-
                 // 闪电怪兽：头顶闪电符号
                 if (this.type === 'fast') {
                     this.drawLightning(centerX, this.y - 18);
@@ -1009,9 +1007,10 @@
             nextItemSpawnTime = ITEM_SPAWN_INTERVAL_MIN + Math.random() * (ITEM_SPAWN_INTERVAL_MAX - ITEM_SPAWN_INTERVAL_MIN);
         }
 
-        // ===== 获取当前怪兽速度 =====
+        // ===== 获取当前怪兽速度（动态难度：每10分提升5%） =====
         function getCurrentMonsterSpeed() {
-            return MONSTER_SPEED_BASE + Math.floor(score / 5) * MONSTER_SPEED_INCREMENT;
+            const level = Math.floor(score / 10);
+            return MONSTER_SPEED_BASE * Math.pow(1.05, level);
         }
 
         // ===== 角色跳跃 =====
