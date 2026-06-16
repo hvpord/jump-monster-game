@@ -1,0 +1,1604 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>跳怪兽小游戏</title>
+    <style>
+        /* ===== 全局样式重置 ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #1a1a2e;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Microsoft YaHei', sans-serif;
+            overflow: hidden;
+        }
+
+        /* ===== 游戏容器 ===== */
+        #gameContainer {
+            position: relative;
+            width: 800px;
+            height: 400px;
+            background: linear-gradient(to bottom, #0f3460 0%, #16213e 60%, #1a1a2e 100%);
+            border-radius: 12px;
+            box-shadow: 0 0 30px rgba(0, 150, 255, 0.3);
+            overflow: hidden;
+        }
+
+        /* ===== 游戏画布 ===== */
+        #gameCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* ===== 开始界面 ===== */
+        #startScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(15, 52, 96, 0.95);
+            z-index: 10;
+            transition: opacity 0.5s;
+        }
+
+        #startScreen h1 {
+            font-size: 48px;
+            color: #e94560;
+            text-shadow: 0 0 20px rgba(233, 69, 96, 0.5);
+            margin-bottom: 20px;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        #startScreen .subtitle {
+            font-size: 18px;
+            color: #a0a0a0;
+            margin-bottom: 40px;
+        }
+
+        #startScreen .instructions {
+            font-size: 15px;
+            color: #e0e0e0;
+            margin-bottom: 40px;
+            text-align: center;
+            line-height: 1.9;
+        }
+
+        #startScreen .instructions span {
+            color: #e94560;
+            font-weight: bold;
+        }
+
+        #startBtn {
+            padding: 15px 50px;
+            font-size: 24px;
+            color: #fff;
+            background: #e94560;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 0 20px rgba(233, 69, 96, 0.4);
+        }
+
+        #startBtn:hover {
+            background: #ff6b6b;
+            transform: scale(1.1);
+            box-shadow: 0 0 30px rgba(233, 69, 96, 0.6);
+        }
+
+        /* ===== 结束界面 ===== */
+        #gameOverScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(15, 52, 96, 0.95);
+            z-index: 10;
+        }
+
+        #gameOverScreen h2 {
+            font-size: 42px;
+            color: #e94560;
+            margin-bottom: 20px;
+        }
+
+        #gameOverScreen .finalScore {
+            font-size: 36px;
+            color: #ffd700;
+            margin-bottom: 10px;
+        }
+
+        #gameOverScreen .highScore {
+            font-size: 20px;
+            color: #a0a0a0;
+            margin-bottom: 40px;
+        }
+
+        #restartBtn {
+            padding: 15px 50px;
+            font-size: 24px;
+            color: #fff;
+            background: #e94560;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 0 20px rgba(233, 69, 96, 0.4);
+        }
+
+        #restartBtn:hover {
+            background: #ff6b6b;
+            transform: scale(1.1);
+            box-shadow: 0 0 30px rgba(233, 69, 96, 0.6);
+        }
+
+        /* ===== 分数显示 ===== */
+        #scoreDisplay {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 24px;
+            color: #ffd700;
+            font-weight: bold;
+            z-index: 5;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+        }
+
+        /* ===== 道具状态显示 ===== */
+        #powerupDisplay {
+            position: absolute;
+            top: 15px;
+            left: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            z-index: 5;
+            font-size: 14px;
+            color: #fff;
+            text-shadow: 0 0 6px rgba(0, 0, 0, 0.7);
+            pointer-events: none;
+        }
+
+        .powerup-tag {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 4px 10px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .powerup-tag.hammer { color: #bdc3c7; }
+        .powerup-tag.wings { color: #87ceeb; }
+        .powerup-tag.shield { color: #3498db; }
+
+        /* ===== 隐藏类 ===== */
+        .hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <!-- 游戏画布 -->
+        <canvas id="gameCanvas" width="800" height="400"></canvas>
+
+        <!-- 分数显示 -->
+        <div id="scoreDisplay">得分: 0</div>
+
+        <!-- 道具状态显示 -->
+        <div id="powerupDisplay"></div>
+
+        <!-- 开始界面 -->
+        <div id="startScreen">
+            <h1>🏃 跳怪兽 🐾</h1>
+            <p class="subtitle">躲避怪兽，挑战极限！</p>
+            <div class="instructions">
+                按 <span>空格键</span> 跳跃躲避怪兽<br>
+                普通怪兽 | 大怪兽 | 黄色跳跃怪兽 | 闪电快速怪兽 | 飞行怪兽 | 怪兽组合<br>
+                <span>🔨 锤子</span> 手持挥舞打飞怪兽10秒 &nbsp; <span>🪽 翅膀</span> 悬空飞行10秒 &nbsp; <span>🪨 石块</span> 自动踢出击飞怪兽 &nbsp; <span>🛡️ 盾牌</span> 挡一次怪兽并打飞<br>
+                每局 shitou 和多多会轮流扮演小人与怪兽哦！
+            </div>
+            <button id="startBtn">开始游戏</button>
+        </div>
+
+        <!-- 结束界面 -->
+        <div id="gameOverScreen">
+            <h2>💥 游戏结束</h2>
+            <div class="finalScore">最终得分: <span id="finalScore">0</span></div>
+            <div class="highScore">最高得分: <span id="highScore">0</span></div>
+            <button id="restartBtn">再来一次</button>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // 跳怪兽小游戏 - 核心游戏逻辑
+        // ============================================
+
+        // ===== 获取DOM元素 =====
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const startScreen = document.getElementById('startScreen');
+        const gameOverScreen = document.getElementById('gameOverScreen');
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const powerupDisplay = document.getElementById('powerupDisplay');
+        const finalScoreEl = document.getElementById('finalScore');
+        const highScoreEl = document.getElementById('highScore');
+        const startBtn = document.getElementById('startBtn');
+        const restartBtn = document.getElementById('restartBtn');
+
+        // ===== 头像素材 =====
+        const shitouImg = new Image();
+        const duoduoImg = new Image();
+        shitouImg.src = 'shitou.png';
+        duoduoImg.src = 'duoduo.png';
+        let playerAvatar = null;
+        let monsterAvatar = null;
+        let avatarImagesReady = 0;
+        [shitouImg, duoduoImg].forEach(img => {
+            img.onload = () => { avatarImagesReady++; };
+        });
+
+        // ===== 游戏常量配置 =====
+        const GAME_WIDTH = 800;
+        const GAME_HEIGHT = 400;
+        const GROUND_Y = 320;
+
+        const PLAYER_X = 100;
+        const PLAYER_WIDTH = 42;
+        const PLAYER_HEIGHT = 52;
+        const JUMP_VELOCITY = -13;
+        const GRAVITY = 0.6;
+        const GROUND_Y_OFFSET = 5;
+        const FLY_HEIGHT_OFFSET = 90;
+
+        const MONSTER_SPEED_BASE = 4;
+        const MONSTER_SPEED_INCREMENT = 0.15;
+        const MONSTER_WIDTH = 38;
+        const MONSTER_HEIGHT = 44;
+        const BIG_MONSTER_WIDTH = 58;
+        const BIG_MONSTER_HEIGHT = 64;
+        const FAST_MONSTER_SPEED_MULTIPLIER = 1.6;
+
+        const YELLOW_JUMP_TRIGGER_DISTANCE = 220;
+        const YELLOW_JUMP_VELOCITY = -7.5;
+        const YELLOW_JUMP_HEIGHT = (YELLOW_JUMP_VELOCITY * YELLOW_JUMP_VELOCITY) / (2 * GRAVITY);
+
+        const MIN_GAP_BETWEEN_MONSTERS = 200;
+        const BIG_MONSTER_TIMING_WINDOW = 0.7;
+        const COMBO_GAP_MIN = 180;
+        const COMBO_GAP_MAX = 220;
+        const SPAWN_MARGIN_RIGHT = 850;
+        const SAFE_ZONE_AFTER_JUMP = 120;
+
+        const SPAWN_INTERVAL_MIN = 120;
+        const SPAWN_INTERVAL_MAX = 240;
+
+        const COLLISION_MARGIN_X = 8;
+        const COLLISION_MARGIN_Y = 10;
+
+        const ITEM_SPAWN_INTERVAL_MIN = 300;
+        const ITEM_SPAWN_INTERVAL_MAX = 600;
+        const FLYING_MONSTER_SPAWN_MIN = 600;
+        const FLYING_MONSTER_SPAWN_MAX = 1200;
+        const INVINCIBLE_DURATION = 600;
+        const FLY_DURATION = 600;
+        const SHIELD_DURATION = 1200;
+        const STONE_SPEED = 9;
+        const DEATH_ANIMATION_DURATION = 80;
+
+        // ===== 游戏状态变量 =====
+        let gameState = 'start';
+        let score = 0;
+        let highScore = 0;
+        let frameCount = 0;
+        let spawnTimer = 0;
+        let nextSpawnTime = 0;
+        let itemSpawnTimer = 0;
+        let nextItemSpawnTime = 0;
+        let flyingSpawnTimer = 0;
+        let nextFlyingSpawnTime = 0;
+        let passedMonsters = 0;
+        let lastPlayerWasShitou = null;  // 用于头像角色严格轮换
+
+        // ===== 角色对象 =====
+        const player = {
+            x: PLAYER_X,
+            y: GROUND_Y - PLAYER_HEIGHT + GROUND_Y_OFFSET,
+            width: PLAYER_WIDTH,
+            height: PLAYER_HEIGHT,
+            vy: 0,
+            isJumping: false,
+            jumpCount: 0,
+            maxJumps: 1,
+            invincibleTimer: 0,
+            flyTimer: 0,
+            shieldTimer: 0,
+            isDead: false,
+            deathTimer: 0,
+            deathRotation: 0
+        };
+
+        // ===== 怪兽、道具、投射物数组 =====
+        let monsters = [];
+        let items = [];
+        let projectiles = [];
+
+        // ===== 背景装饰 =====
+        let bgStars = [];
+        let clouds = [];
+        let groundOffset = 0;
+
+        // ===== 初始化背景元素 =====
+        function initBackground() {
+            bgStars = [];
+            for (let i = 0; i < 50; i++) {
+                bgStars.push({
+                    x: Math.random() * GAME_WIDTH,
+                    y: Math.random() * (GROUND_Y - 50),
+                    size: Math.random() * 2 + 1,
+                    twinkle: Math.random() * Math.PI * 2
+                });
+            }
+
+            clouds = [];
+            for (let i = 0; i < 5; i++) {
+                clouds.push({
+                    x: Math.random() * GAME_WIDTH,
+                    y: Math.random() * 150 + 20,
+                    width: Math.random() * 80 + 60,
+                    speed: Math.random() * 0.5 + 0.2
+                });
+            }
+        }
+
+        // ===== 随机分配头像角色 =====
+        function pickAvatars() {
+            if (lastPlayerWasShitou === null) {
+                lastPlayerWasShitou = Math.random() < 0.5;
+            } else {
+                lastPlayerWasShitou = !lastPlayerWasShitou;
+            }
+
+            if (lastPlayerWasShitou) {
+                playerAvatar = shitouImg;
+                monsterAvatar = duoduoImg;
+            } else {
+                playerAvatar = duoduoImg;
+                monsterAvatar = shitouImg;
+            }
+        }
+
+        function avatarLoaded(avatar) {
+            return avatar && avatar.complete && avatar.naturalWidth > 0;
+        }
+
+        // ===== 音效系统（Web Audio API） =====
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function playJumpSound() {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(280, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(560, audioCtx.currentTime + 0.12);
+            gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.12);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.12);
+        }
+
+        function playKnockSound() {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(160, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.15);
+            gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.15);
+        }
+
+        function playItemSound() {
+            if (!audioCtx) return;
+            [523, 659, 784].forEach((freq, i) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.type = 'sine';
+                osc.frequency.value = freq;
+                const t = audioCtx.currentTime + i * 0.05;
+                gain.gain.setValueAtTime(0, t);
+                gain.gain.linearRampToValueAtTime(0.12, t + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+                osc.start(t);
+                osc.stop(t + 0.2);
+            });
+        }
+
+        function playGameOverSound() {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(220, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(55, audioCtx.currentTime + 0.5);
+            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.5);
+        }
+
+        // ===== 怪兽类 =====
+        class Monster {
+            constructor(type, x, speed) {
+                this.type = type;
+                this.x = x;
+                this.speed = speed;
+                this.passed = false;
+                this.scored = false;
+                this.isKnocked = false;
+                this.vx = -speed;
+                this.vy = 0;
+                this.rotation = 0;
+                this.isJumping = false;
+
+                if (type === 'big') {
+                    this.width = BIG_MONSTER_WIDTH;
+                    this.height = BIG_MONSTER_HEIGHT;
+                } else if (type === 'yellow') {
+                    this.width = 28;
+                    this.height = 52;
+                } else if (type === 'flying') {
+                    this.width = PLAYER_WIDTH;
+                    this.height = PLAYER_HEIGHT;
+                } else {
+                    this.width = MONSTER_WIDTH;
+                    this.height = MONSTER_HEIGHT;
+                }
+
+                if (type === 'flying') {
+                    this.y = GROUND_Y - PLAYER_HEIGHT - FLY_HEIGHT_OFFSET;
+                } else {
+                    this.y = GROUND_Y - this.height + GROUND_Y_OFFSET;
+                }
+
+                if (type === 'fast') {
+                    this.vx = -speed * FAST_MONSTER_SPEED_MULTIPLIER;
+                }
+
+                this.animFrame = 0;
+                this.legAngle = 0;
+            }
+
+            update() {
+                if (this.isKnocked) {
+                    this.x += this.vx;
+                    this.y += this.vy;
+                    this.vy += GRAVITY;
+                    this.rotation += 0.15;
+                    return;
+                }
+
+                this.x += this.vx;
+                this.animFrame++;
+                this.legAngle = Math.sin(this.animFrame * 0.15) * 0.3;
+
+                if (this.isJumping) {
+                    this.y += this.vy;
+                    this.vy += GRAVITY;
+                    const groundLevel = GROUND_Y - this.height + GROUND_Y_OFFSET;
+                    if (this.y >= groundLevel) {
+                        this.y = groundLevel;
+                        this.vy = 0;
+                        this.isJumping = false;
+                    }
+                }
+            }
+
+            draw(ctx) {
+                const centerX = this.x + this.width / 2;
+
+                ctx.save();
+                ctx.translate(centerX, this.y + this.height / 2);
+                ctx.rotate(this.rotation);
+
+                if (this.type === 'big') {
+                    this.drawBigBody();
+                } else if (this.type === 'yellow') {
+                    this.drawYellowBody();
+                } else if (this.type === 'flying') {
+                    this.drawFlyingBody();
+                } else {
+                    this.drawNormalBody();
+                }
+
+                // 头部：头像或 fallback（放大到约两倍直径）
+                let headRadius, headY;
+                if (this.type === 'big') {
+                    headRadius = this.width * 0.65;
+                    headY = -this.height * 0.3;
+                } else if (this.type === 'yellow') {
+                    headRadius = this.width * 0.8;
+                    headY = -this.height * 0.28;
+                } else if (this.type === 'flying') {
+                    headRadius = this.width * 0.6;
+                    headY = -this.height * 0.25;
+                } else {
+                    headRadius = this.width * 0.6;
+                    headY = -this.height * 0.25;
+                }
+                if (avatarLoaded(monsterAvatar)) {
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.arc(0, headY, headRadius, 0, Math.PI * 2);
+                    ctx.clip();
+                    ctx.drawImage(monsterAvatar, -headRadius, headY - headRadius, headRadius * 2, headRadius * 2);
+                    ctx.restore();
+                } else {
+                    ctx.fillStyle = this.type === 'big' ? '#e74c3c' : '#ff6b6b';
+                    ctx.beginPath();
+                    ctx.arc(0, headY, headRadius, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.fillStyle = '#fff';
+                    ctx.beginPath();
+                    ctx.arc(-6, headY - 2, 5, 0, Math.PI * 2);
+                    ctx.arc(6, headY - 2, 5, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.fillStyle = '#000';
+                    ctx.beginPath();
+                    ctx.arc(-6, headY - 2, 2.5, 0, Math.PI * 2);
+                    ctx.arc(6, headY - 2, 2.5, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    const mouthY = headY + headRadius * 0.6;
+                    ctx.strokeStyle = '#2c3e50';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(0, mouthY, 6, 0.2, Math.PI - 0.2);
+                    ctx.stroke();
+                }
+
+                // 紫色恶魔犄角（所有怪兽都有）
+                this.drawHorns(headY, headRadius);
+
+                ctx.restore();
+
+                // 黄色怪兽：添加金色光晕
+                if (this.type === 'yellow') {
+                    ctx.save();
+                    ctx.strokeStyle = '#f1c40f';
+                    ctx.lineWidth = 3;
+                    ctx.shadowColor = '#f1c40f';
+                    ctx.shadowBlur = 10;
+                    ctx.strokeRect(this.x - 3, this.y - 3, this.width + 6, this.height + 6);
+                    ctx.restore();
+                }
+
+                // 闪电怪兽：头顶闪电符号
+                if (this.type === 'fast') {
+                    this.drawLightning(centerX, this.y - 18);
+                }
+            }
+
+            drawBigBody() {
+                // 身体
+                ctx.fillStyle = '#c0392b';
+                ctx.beginPath();
+                ctx.ellipse(0, -this.height * 0.1, this.width * 0.5, this.height * 0.4, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // 腿
+                ctx.strokeStyle = '#c0392b';
+                ctx.lineWidth = 6;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(-15, this.height * 0.4);
+                ctx.lineTo(-15 + Math.sin(this.legAngle) * 10, this.height * 0.5);
+                ctx.moveTo(15, this.height * 0.4);
+                ctx.lineTo(15 - Math.sin(this.legAngle) * 10, this.height * 0.5);
+                ctx.stroke();
+            }
+
+            drawNormalBody() {
+                // 身体
+                ctx.fillStyle = '#e74c3c';
+                ctx.beginPath();
+                ctx.ellipse(0, -this.height * 0.05, this.width * 0.45, this.height * 0.35, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // 腿
+                ctx.strokeStyle = '#e74c3c';
+                ctx.lineWidth = 4;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(-8, this.height * 0.35);
+                ctx.lineTo(-8 + Math.sin(this.legAngle) * 6, this.height * 0.5);
+                ctx.moveTo(8, this.height * 0.35);
+                ctx.lineTo(8 - Math.sin(this.legAngle) * 6, this.height * 0.5);
+                ctx.stroke();
+            }
+
+            drawYellowBody() {
+                // 瘦长身体
+                ctx.fillStyle = '#f39c12';
+                ctx.beginPath();
+                ctx.ellipse(0, -this.height * 0.08, this.width * 0.38, this.height * 0.42, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // 两条长腿
+                ctx.strokeStyle = '#f39c12';
+                ctx.lineWidth = 3;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(-6, this.height * 0.42);
+                ctx.lineTo(-6 + Math.sin(this.legAngle) * 8, this.height * 0.58);
+                ctx.moveTo(6, this.height * 0.42);
+                ctx.lineTo(6 - Math.sin(this.legAngle) * 8, this.height * 0.58);
+                ctx.stroke();
+            }
+
+            drawFlyingBody() {
+                // 飞行怪兽身体（无腿）
+                ctx.fillStyle = '#9b59b6';
+                ctx.beginPath();
+                ctx.ellipse(0, 0, this.width * 0.35, this.height * 0.25, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // 翅膀（跟小人一样）
+                ctx.fillStyle = 'rgba(135, 206, 235, 0.85)';
+                ctx.shadowColor = '#fff';
+                ctx.shadowBlur = 10;
+                const flap = Math.sin(this.animFrame * 0.4) * 8;
+
+                ctx.beginPath();
+                ctx.moveTo(-6, 0);
+                ctx.quadraticCurveTo(-28, -18 + flap, -36, 6);
+                ctx.quadraticCurveTo(-22, 8, -6, 4);
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.moveTo(6, 0);
+                ctx.quadraticCurveTo(28, -18 + flap, 36, 6);
+                ctx.quadraticCurveTo(22, 8, 6, 4);
+                ctx.fill();
+            }
+
+            drawHorns(headY, headRadius) {
+                const hornH = headRadius * 0.55;
+                const baseX = headRadius * 0.45;
+                const tipX = headRadius * 0.7;
+                ctx.fillStyle = '#8e44ad';
+                ctx.beginPath();
+                ctx.moveTo(-baseX, headY - headRadius * 0.15);
+                ctx.lineTo(-tipX, headY - headRadius * 0.15 - hornH);
+                ctx.lineTo(-baseX * 0.3, headY + headRadius * 0.05);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.moveTo(baseX, headY - headRadius * 0.15);
+                ctx.lineTo(tipX, headY - headRadius * 0.15 - hornH);
+                ctx.lineTo(baseX * 0.3, headY + headRadius * 0.05);
+                ctx.fill();
+            }
+
+            drawLightning(x, y) {
+                ctx.save();
+                ctx.fillStyle = '#ffd700';
+                ctx.shadowColor = '#fff';
+                ctx.shadowBlur = 8;
+                ctx.beginPath();
+                ctx.moveTo(x - 6, y - 10);
+                ctx.lineTo(x + 2, y - 10);
+                ctx.lineTo(x - 2, y + 2);
+                ctx.lineTo(x + 6, y + 2);
+                ctx.lineTo(x - 4, y + 14);
+                ctx.lineTo(x, y + 2);
+                ctx.lineTo(x - 8, y + 2);
+                ctx.closePath();
+                ctx.fill();
+                ctx.restore();
+            }
+
+            getHitbox() {
+                return {
+                    x: this.x + COLLISION_MARGIN_X,
+                    y: this.y + COLLISION_MARGIN_Y,
+                    width: this.width - COLLISION_MARGIN_X * 2,
+                    height: this.height - COLLISION_MARGIN_Y * 2
+                };
+            }
+        }
+
+        // ===== 道具类 =====
+        class Item {
+            constructor(type, x) {
+                this.type = type;
+                this.x = x;
+                this.width = 32;
+                this.height = 32;
+                this.y = GROUND_Y - this.height + GROUND_Y_OFFSET;
+                this.collected = false;
+                this.bobOffset = Math.random() * Math.PI * 2;
+            }
+
+            update() {
+                this.x -= getCurrentMonsterSpeed();
+            }
+
+            draw(ctx) {
+                const bobY = Math.sin(frameCount * 0.1 + this.bobOffset) * 4;
+                const cx = this.x + this.width / 2;
+                const cy = this.y + this.height / 2 + bobY;
+
+                ctx.save();
+                if (this.type === 'hammer') {
+                    this.drawHammer(cx, cy);
+                } else if (this.type === 'wings') {
+                    this.drawWings(cx, cy);
+                } else if (this.type === 'stone') {
+                    this.drawStone(cx, cy);
+                } else if (this.type === 'shield') {
+                    this.drawShield(cx, cy);
+                }
+                ctx.restore();
+            }
+
+            drawHammer(cx, cy) {
+                ctx.save();
+                ctx.translate(cx, cy);
+                ctx.rotate(Math.sin(frameCount * 0.15) * 0.3);
+
+                // 锤柄
+                ctx.fillStyle = '#8b4513';
+                ctx.beginPath();
+                ctx.roundRect(-3, -18, 6, 32, 2);
+                ctx.fill();
+
+                // 锤头
+                ctx.fillStyle = '#7f8c8d';
+                ctx.beginPath();
+                ctx.roundRect(-12, -28, 24, 12, 3);
+                ctx.fill();
+
+                // 锤头高光
+                ctx.fillStyle = '#95a5a6';
+                ctx.beginPath();
+                ctx.roundRect(-10, -26, 6, 4, 1);
+                ctx.fill();
+
+                ctx.restore();
+            }
+
+            drawWings(cx, cy) {
+                ctx.fillStyle = '#87ceeb';
+                ctx.shadowColor = '#fff';
+                ctx.shadowBlur = 10;
+                ctx.beginPath();
+                ctx.moveTo(cx, cy - 4);
+                ctx.quadraticCurveTo(cx - 16, cy - 14, cx - 22, cy + 2);
+                ctx.quadraticCurveTo(cx - 12, cy + 4, cx, cy + 6);
+                ctx.quadraticCurveTo(cx + 12, cy + 4, cx + 22, cy + 2);
+                ctx.quadraticCurveTo(cx + 16, cy - 14, cx, cy - 4);
+                ctx.fill();
+
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(cx, cy - 4);
+                ctx.lineTo(cx, cy + 6);
+                ctx.stroke();
+            }
+
+            drawStone(cx, cy) {
+                ctx.fillStyle = '#7f8c8d';
+                ctx.shadowColor = '#000';
+                ctx.shadowBlur = 4;
+                ctx.beginPath();
+                ctx.ellipse(cx, cy, 12, 9, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#95a5a6';
+                ctx.beginPath();
+                ctx.ellipse(cx - 3, cy - 2, 4, 3, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            drawShield(cx, cy) {
+                ctx.save();
+                ctx.translate(cx, cy);
+                ctx.fillStyle = '#3498db';
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.shadowColor = '#3498db';
+                ctx.shadowBlur = 8;
+
+                // 经典盾牌轮廓
+                ctx.beginPath();
+                ctx.moveTo(0, -14);
+                ctx.bezierCurveTo(12, -12, 14, -2, 14, 4);
+                ctx.bezierCurveTo(14, 16, 4, 22, 0, 26);
+                ctx.bezierCurveTo(-4, 22, -14, 16, -14, 4);
+                ctx.bezierCurveTo(-14, -2, -12, -12, 0, -14);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                // 中央十字/装饰
+                ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(0, -10);
+                ctx.lineTo(0, 18);
+                ctx.moveTo(-8, 2);
+                ctx.lineTo(8, 2);
+                ctx.stroke();
+
+                ctx.restore();
+            }
+
+            getHitbox() {
+                return {
+                    x: this.x,
+                    y: this.y,
+                    width: this.width,
+                    height: this.height
+                };
+            }
+        }
+
+        // ===== 石块投射物类 =====
+        class StoneProjectile {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.width = 24;
+                this.height = 18;
+                this.vx = STONE_SPEED;
+                this.vy = -3;
+                this.rotation = 0;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += GRAVITY;
+                this.rotation += 0.2;
+                if (this.y > GROUND_Y - this.height / 2) {
+                    this.y = GROUND_Y - this.height / 2;
+                    this.vy *= -0.5;
+                }
+            }
+
+            draw(ctx) {
+                ctx.save();
+                ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
+                ctx.rotate(this.rotation);
+                ctx.fillStyle = '#7f8c8d';
+                ctx.beginPath();
+                ctx.ellipse(0, 0, this.width / 2, this.height / 2, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#95a5a6';
+                ctx.beginPath();
+                ctx.ellipse(-3, -2, 5, 3, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+
+            getHitbox() {
+                return {
+                    x: this.x,
+                    y: this.y,
+                    width: this.width,
+                    height: this.height
+                };
+            }
+        }
+
+        // ===== 怪兽生成算法 =====
+        function spawnMonster() {
+            const currentSpeed = getCurrentMonsterSpeed();
+            const lastMonster = monsters.length > 0 ? monsters[monsters.length - 1] : null;
+
+            if (lastMonster) {
+                const distance = SPAWN_MARGIN_RIGHT - lastMonster.x;
+                if (distance < MIN_GAP_BETWEEN_MONSTERS) {
+                    return;
+                }
+            }
+
+            const rand = Math.random();
+            let type;
+            if (rand < 0.35) {
+                type = 'normal';
+            } else if (rand < 0.55) {
+                type = 'big';
+            } else if (rand < 0.75) {
+                type = 'yellow';
+            } else if (rand < 0.9) {
+                type = 'fast';
+            } else {
+                type = 'combo';
+            }
+
+            if (type === 'combo') {
+                const comboCount = Math.random() < 0.5 ? 2 : 3;
+                const gap = COMBO_GAP_MIN + Math.random() * (COMBO_GAP_MAX - COMBO_GAP_MIN);
+                for (let i = 0; i < comboCount; i++) {
+                    const x = SPAWN_MARGIN_RIGHT + i * gap;
+                    monsters.push(new Monster('normal', x, currentSpeed));
+                }
+            } else {
+                monsters.push(new Monster(type, SPAWN_MARGIN_RIGHT, currentSpeed));
+            }
+
+            spawnTimer = 0;
+            nextSpawnTime = SPAWN_INTERVAL_MIN + Math.random() * (SPAWN_INTERVAL_MAX - SPAWN_INTERVAL_MIN);
+        }
+
+        // ===== 飞行怪兽生成 =====
+        function spawnFlyingMonster() {
+            const currentSpeed = getCurrentMonsterSpeed();
+            monsters.push(new Monster('flying', SPAWN_MARGIN_RIGHT, currentSpeed));
+            flyingSpawnTimer = 0;
+            nextFlyingSpawnTime = FLYING_MONSTER_SPAWN_MIN + Math.random() * (FLYING_MONSTER_SPAWN_MAX - FLYING_MONSTER_SPAWN_MIN);
+        }
+
+        // ===== 道具生成 =====
+        function spawnItem() {
+            const types = ['hammer', 'wings', 'stone', 'shield'];
+            const type = types[Math.floor(Math.random() * types.length)];
+            items.push(new Item(type, GAME_WIDTH + 30));
+            itemSpawnTimer = 0;
+            nextItemSpawnTime = ITEM_SPAWN_INTERVAL_MIN + Math.random() * (ITEM_SPAWN_INTERVAL_MAX - ITEM_SPAWN_INTERVAL_MIN);
+        }
+
+        // ===== 获取当前怪兽速度 =====
+        function getCurrentMonsterSpeed() {
+            return MONSTER_SPEED_BASE + Math.floor(score / 5) * MONSTER_SPEED_INCREMENT;
+        }
+
+        // ===== 角色跳跃 =====
+        function jump() {
+            if (gameState !== 'playing' || player.isDead) return;
+
+            if (player.flyTimer > 0) {
+                // 飞行中再次按键可提前降落
+                player.flyTimer = 0;
+                player.vy = 0;
+                return;
+            }
+
+            if (!player.isJumping) {
+                player.vy = JUMP_VELOCITY;
+                player.isJumping = true;
+                player.jumpCount = 1;
+                playJumpSound();
+
+                // 同步触发屏幕内黄色怪兽跳跃
+                monsters.forEach(monster => {
+                    if (monster.type === 'yellow' && !monster.isJumping && !monster.isKnocked &&
+                        monster.x + monster.width > -50 && monster.x < GAME_WIDTH + 50 &&
+                        monster.x > player.x) {
+                        monster.vy = YELLOW_JUMP_VELOCITY;
+                        monster.isJumping = true;
+                    }
+                });
+            }
+        }
+
+        // ===== 更新角色物理 =====
+        function updatePlayer() {
+            if (player.isDead) {
+                player.deathTimer++;
+                player.y += 4;
+                player.deathRotation += 0.12;
+                if (player.deathTimer >= DEATH_ANIMATION_DURATION) {
+                    gameOver();
+                }
+                return;
+            }
+
+            if (player.invincibleTimer > 0) player.invincibleTimer--;
+            if (player.shieldTimer > 0) player.shieldTimer--;
+
+            if (player.flyTimer > 0) {
+                player.flyTimer--;
+                const targetY = GROUND_Y - PLAYER_HEIGHT - FLY_HEIGHT_OFFSET;
+                player.y += (targetY - player.y) * 0.08;
+                player.isJumping = true;
+                return;
+            }
+
+            player.vy += GRAVITY;
+            player.y += player.vy;
+
+            const groundLevel = GROUND_Y - PLAYER_HEIGHT + GROUND_Y_OFFSET;
+            if (player.y >= groundLevel) {
+                player.y = groundLevel;
+                player.vy = 0;
+                player.isJumping = false;
+                player.jumpCount = 0;
+            }
+        }
+
+        // ===== 绘制角色 =====
+        function drawPlayer() {
+            const cx = player.x + player.width / 2;
+            const cy = player.y + player.height / 2;
+            const headY = -player.height * 0.3;
+            const headRadius = player.width * 0.65;
+
+            ctx.save();
+            ctx.translate(cx, cy);
+            if (player.isDead) {
+                ctx.rotate(player.deathRotation);
+            }
+
+            // 身体
+            ctx.fillStyle = '#3498db';
+            ctx.beginPath();
+            ctx.ellipse(0, 0, player.width * 0.35, player.height * 0.3, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 腿（跑步动画）
+            ctx.strokeStyle = '#2980b9';
+            ctx.lineWidth = 5;
+            ctx.lineCap = 'round';
+            const legAnim = player.isJumping ? 0.5 : Math.sin(frameCount * 0.2) * 0.5;
+            const legStartY = player.height * 0.5 - 8;
+            const legEndY = player.height * 0.5 + 2;
+
+            ctx.beginPath();
+            ctx.moveTo(-6, legStartY);
+            ctx.lineTo(-6 + legAnim * 12, legEndY);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(6, legStartY);
+            ctx.lineTo(6 - legAnim * 12, legEndY);
+            ctx.stroke();
+
+            // 手臂（加长，避免被大头像挡住）
+            ctx.strokeStyle = '#f1c40f';
+            ctx.lineWidth = 4;
+            const armY = player.height * 0.05;
+            const leftHandY = armY + (player.isJumping ? -5 : Math.sin(frameCount * 0.2) * 3);
+            const rightHandY = armY + (player.isJumping ? 5 : -Math.sin(frameCount * 0.2) * 3);
+            const handX = 28;
+
+            ctx.beginPath();
+            ctx.moveTo(-8, -player.height * 0.05);
+            ctx.lineTo(-handX, leftHandY);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(8, -player.height * 0.05);
+            ctx.lineTo(handX, rightHandY);
+            ctx.stroke();
+
+            // 头部：头像或 fallback
+            if (avatarLoaded(playerAvatar)) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(0, headY, headRadius, 0, Math.PI * 2);
+                ctx.clip();
+                ctx.drawImage(playerAvatar, -headRadius, headY - headRadius, headRadius * 2, headRadius * 2);
+                ctx.restore();
+            } else {
+                ctx.fillStyle = '#f1c40f';
+                ctx.beginPath();
+                ctx.arc(0, headY, headRadius, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#fff';
+                ctx.beginPath();
+                ctx.arc(-5, headY - 2, 4, 0, Math.PI * 2);
+                ctx.arc(5, headY - 2, 4, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#000';
+                ctx.beginPath();
+                ctx.arc(-5, headY - 2, 2, 0, Math.PI * 2);
+                ctx.arc(5, headY - 2, 2, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.arc(0, headY + 5, 5, 0.1, Math.PI - 0.1);
+                ctx.stroke();
+            }
+
+            ctx.restore();
+
+            // 手持锤子挥舞效果
+            if (player.invincibleTimer > 0) {
+                ctx.save();
+                const handXAbs = cx + handX;
+                const handYAbs = cy + rightHandY;
+                ctx.translate(handXAbs, handYAbs);
+                ctx.rotate(Math.sin(frameCount * 0.5) * 0.9 - 0.3);
+
+                // 锤柄
+                ctx.fillStyle = '#8b4513';
+                ctx.beginPath();
+                ctx.roundRect(-3, -18, 6, 32, 2);
+                ctx.fill();
+
+                // 锤头
+                ctx.fillStyle = '#7f8c8d';
+                ctx.beginPath();
+                ctx.roundRect(-12, -28, 24, 12, 3);
+                ctx.fill();
+
+                // 锤头高光
+                ctx.fillStyle = '#95a5a6';
+                ctx.beginPath();
+                ctx.roundRect(-10, -26, 6, 4, 1);
+                ctx.fill();
+
+                ctx.restore();
+            }
+
+            // 手持盾牌效果（挡在身前）
+            if (player.shieldTimer > 0) {
+                ctx.save();
+                const shieldX = cx + handX + 6;
+                const shieldY = cy + rightHandY;
+                ctx.translate(shieldX, shieldY);
+                ctx.rotate(Math.sin(frameCount * 0.2) * 0.05);
+
+                ctx.fillStyle = '#3498db';
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 3;
+                ctx.shadowColor = '#3498db';
+                ctx.shadowBlur = 10;
+
+                // 盾牌主体
+                ctx.beginPath();
+                ctx.moveTo(0, -26);
+                ctx.bezierCurveTo(18, -22, 22, -4, 22, 6);
+                ctx.bezierCurveTo(22, 26, 6, 36, 0, 44);
+                ctx.bezierCurveTo(-6, 36, -22, 26, -22, 6);
+                ctx.bezierCurveTo(-22, -4, -18, -22, 0, -26);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                // 装饰十字
+                ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(0, -18);
+                ctx.lineTo(0, 32);
+                ctx.moveTo(-12, 4);
+                ctx.lineTo(12, 4);
+                ctx.stroke();
+
+                ctx.restore();
+            }
+
+            // 翅膀特效
+            if (player.flyTimer > 0) {
+                ctx.save();
+                ctx.fillStyle = 'rgba(135, 206, 235, 0.85)';
+                ctx.shadowColor = '#fff';
+                ctx.shadowBlur = 10;
+                const flap = Math.sin(frameCount * 0.4) * 8;
+
+                ctx.beginPath();
+                ctx.moveTo(cx - 6, cy);
+                ctx.quadraticCurveTo(cx - 28, cy - 18 + flap, cx - 36, cy + 6);
+                ctx.quadraticCurveTo(cx - 22, cy + 8, cx - 6, cy + 4);
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.moveTo(cx + 6, cy);
+                ctx.quadraticCurveTo(cx + 28, cy - 18 + flap, cx + 36, cy + 6);
+                ctx.quadraticCurveTo(cx + 22, cy + 8, cx + 6, cy + 4);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        // ===== 绘制背景 =====
+        function drawBackground() {
+            ctx.fillStyle = '#fff';
+            bgStars.forEach(star => {
+                const alpha = 0.5 + Math.sin(star.twinkle + frameCount * 0.05) * 0.5;
+                ctx.globalAlpha = alpha;
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            ctx.globalAlpha = 1;
+
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+            clouds.forEach(cloud => {
+                ctx.beginPath();
+                ctx.ellipse(cloud.x, cloud.y, cloud.width * 0.5, 20, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.ellipse(cloud.x - 20, cloud.y + 5, cloud.width * 0.3, 15, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.ellipse(cloud.x + 20, cloud.y + 5, cloud.width * 0.3, 15, 0, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            ctx.fillStyle = '#2d5016';
+            ctx.fillRect(0, GROUND_Y, GAME_WIDTH, GAME_HEIGHT - GROUND_Y);
+
+            ctx.fillStyle = '#3d6b1f';
+            groundOffset = (groundOffset + getCurrentMonsterSpeed()) % 40;
+            for (let x = -groundOffset; x < GAME_WIDTH; x += 40) {
+                ctx.fillRect(x, GROUND_Y, 20, 4);
+            }
+
+            ctx.strokeStyle = '#4a8525';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(0, GROUND_Y);
+            ctx.lineTo(GAME_WIDTH, GROUND_Y);
+            ctx.stroke();
+
+            ctx.fillStyle = 'rgba(15, 52, 96, 0.5)';
+            ctx.beginPath();
+            ctx.moveTo(0, GROUND_Y);
+            for (let x = 0; x <= GAME_WIDTH; x += 50) {
+                ctx.lineTo(x, GROUND_Y - 30 - Math.sin(x * 0.02) * 20);
+            }
+            ctx.lineTo(GAME_WIDTH, GROUND_Y);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        // ===== 碰撞检测工具 =====
+        function rectsOverlap(a, b) {
+            return a.x < b.x + b.width &&
+                   a.x + a.width > b.x &&
+                   a.y < b.y + b.height &&
+                   a.y + a.height > b.y;
+        }
+
+        // ===== 击倒怪兽 =====
+        function knockMonster(monster, direction = 1) {
+            if (!monster.scored) {
+                monster.scored = true;
+                passedMonsters++;
+                score = passedMonsters;
+                scoreDisplay.textContent = `得分: ${score}`;
+            }
+            monster.isKnocked = true;
+            monster.vx = 7 * direction;
+            monster.vy = -6;
+            playKnockSound();
+        }
+
+        // ===== 处理道具拾取 =====
+        function collectItem(item) {
+            if (item.type === 'hammer') {
+                player.invincibleTimer = INVINCIBLE_DURATION;
+            } else if (item.type === 'wings') {
+                player.flyTimer = FLY_DURATION;
+                player.vy = 0;
+            } else if (item.type === 'shield') {
+                player.shieldTimer = SHIELD_DURATION;
+            } else if (item.type === 'stone') {
+                projectiles.push(new StoneProjectile(player.x + player.width, player.y + player.height / 2));
+            }
+            item.collected = true;
+            playItemSound();
+        }
+
+        // ===== 更新道具状态显示 =====
+        function updatePowerupDisplay() {
+            powerupDisplay.innerHTML = '';
+            if (player.invincibleTimer > 0) {
+                const seconds = Math.ceil(player.invincibleTimer / 60);
+                powerupDisplay.innerHTML += `<div class="powerup-tag hammer">🔨 锤子 ${seconds}s</div>`;
+            }
+            if (player.flyTimer > 0) {
+                const seconds = Math.ceil(player.flyTimer / 60);
+                powerupDisplay.innerHTML += `<div class="powerup-tag wings">🪽 飞行 ${seconds}s</div>`;
+            }
+            if (player.shieldTimer > 0) {
+                const seconds = Math.ceil(player.shieldTimer / 60);
+                powerupDisplay.innerHTML += `<div class="powerup-tag shield">🛡️ 盾牌 ${seconds}s</div>`;
+            }
+        }
+
+        // ===== 碰撞检测主逻辑 =====
+        function checkCollisions() {
+            const playerHitbox = {
+                x: player.x + COLLISION_MARGIN_X,
+                y: player.y + COLLISION_MARGIN_Y,
+                width: player.width - COLLISION_MARGIN_X * 2,
+                height: player.height - COLLISION_MARGIN_Y * 2
+            };
+
+            // 道具拾取
+            for (const item of items) {
+                if (!item.collected && rectsOverlap(playerHitbox, item.getHitbox())) {
+                    collectItem(item);
+                }
+            }
+
+            // 怪兽碰撞
+            for (const monster of monsters) {
+                if (monster.isKnocked) continue;
+
+                // 飞行怪兽只在玩家跳起或飞行时才能碰撞
+                if (monster.type === 'flying') {
+                    const playerOnGround = !player.isJumping && player.flyTimer <= 0 && player.y >= GROUND_Y - PLAYER_HEIGHT + GROUND_Y_OFFSET - 2;
+                    if (playerOnGround) continue;
+                }
+
+                if (rectsOverlap(playerHitbox, monster.getHitbox())) {
+                    if (player.invincibleTimer > 0) {
+                        knockMonster(monster, 1);
+                    } else if (player.shieldTimer > 0) {
+                        knockMonster(monster, 1);
+                        player.shieldTimer = 0;
+                    } else {
+                        startDeath();
+                        return;
+                    }
+                }
+            }
+
+            // 石块击飞怪兽
+            for (const projectile of projectiles) {
+                for (const monster of monsters) {
+                    if (monster.isKnocked) continue;
+                    if (rectsOverlap(projectile.getHitbox(), monster.getHitbox())) {
+                        knockMonster(monster, 1);
+                    }
+                }
+            }
+        }
+
+        function startDeath() {
+            player.isDead = true;
+            player.vy = 0;
+        }
+
+        // ===== 计分逻辑 =====
+        function updateScore() {
+            for (const monster of monsters) {
+                if (!monster.scored && monster.x + monster.width < player.x) {
+                    monster.scored = true;
+                    passedMonsters++;
+                    score = passedMonsters;
+                    scoreDisplay.textContent = `得分: ${score}`;
+                }
+            }
+        }
+
+        // ===== 清理离屏对象 =====
+        function cleanupObjects() {
+            monsters = monsters.filter(m => m.x + m.width > -100 && m.y < GAME_HEIGHT + 100);
+            items = items.filter(i => i.x + i.width > -50 && !i.collected);
+            projectiles = projectiles.filter(p => p.x < GAME_WIDTH + 100);
+        }
+
+        // ===== 更新背景动画 =====
+        function updateBackground() {
+            clouds.forEach(cloud => {
+                cloud.x -= cloud.speed;
+                if (cloud.x + cloud.width < 0) {
+                    cloud.x = GAME_WIDTH + cloud.width;
+                    cloud.y = Math.random() * 150 + 20;
+                }
+            });
+        }
+
+        // ===== 游戏主循环 =====
+        function gameLoop() {
+            if (gameState !== 'playing') return;
+
+            ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+            updateBackground();
+            drawBackground();
+
+            updatePlayer();
+            drawPlayer();
+
+            // 生成怪兽
+            spawnTimer++;
+            if (spawnTimer >= nextSpawnTime) {
+                spawnMonster();
+            }
+
+            // 生成道具
+            itemSpawnTimer++;
+            if (itemSpawnTimer >= nextItemSpawnTime) {
+                spawnItem();
+            }
+
+            // 生成飞行怪兽
+            flyingSpawnTimer++;
+            if (flyingSpawnTimer >= nextFlyingSpawnTime) {
+                spawnFlyingMonster();
+            }
+
+            // 更新和绘制怪兽
+            monsters.forEach(monster => {
+                monster.update();
+                monster.draw(ctx);
+            });
+
+            // 更新和绘制道具
+            items.forEach(item => {
+                item.update();
+                item.draw(ctx);
+            });
+
+            // 更新和绘制石块
+            projectiles.forEach(projectile => {
+                projectile.update();
+                projectile.draw(ctx);
+            });
+
+            checkCollisions();
+            updateScore();
+            updatePowerupDisplay();
+            cleanupObjects();
+
+            frameCount++;
+            requestAnimationFrame(gameLoop);
+        }
+
+        // ===== 开始游戏 =====
+        function startGame() {
+            gameState = 'playing';
+            score = 0;
+            passedMonsters = 0;
+            frameCount = 0;
+            spawnTimer = 0;
+            nextSpawnTime = SPAWN_INTERVAL_MIN;
+            itemSpawnTimer = 0;
+            nextItemSpawnTime = ITEM_SPAWN_INTERVAL_MIN + Math.random() * (ITEM_SPAWN_INTERVAL_MAX - ITEM_SPAWN_INTERVAL_MIN);
+            flyingSpawnTimer = 0;
+            nextFlyingSpawnTime = FLYING_MONSTER_SPAWN_MIN + Math.random() * (FLYING_MONSTER_SPAWN_MAX - FLYING_MONSTER_SPAWN_MIN);
+            monsters = [];
+            items = [];
+            projectiles = [];
+
+            player.y = GROUND_Y - PLAYER_HEIGHT + GROUND_Y_OFFSET;
+            player.vy = 0;
+            player.isJumping = false;
+            player.jumpCount = 0;
+            player.invincibleTimer = 0;
+            player.flyTimer = 0;
+            player.shieldTimer = 0;
+            player.isDead = false;
+            player.deathTimer = 0;
+            player.deathRotation = 0;
+
+            pickAvatars();
+            initAudio();
+
+            scoreDisplay.textContent = '得分: 0';
+            powerupDisplay.innerHTML = '';
+            startScreen.classList.add('hidden');
+            gameOverScreen.style.display = 'none';
+
+            initBackground();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // ===== 游戏结束 =====
+        function gameOver() {
+            gameState = 'gameover';
+            playGameOverSound();
+
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('monsterJumpHighScore', highScore);
+            }
+
+            finalScoreEl.textContent = score;
+            highScoreEl.textContent = highScore;
+            gameOverScreen.style.display = 'flex';
+        }
+
+        // ===== 加载最高分 =====
+        function loadHighScore() {
+            const saved = localStorage.getItem('monsterJumpHighScore');
+            if (saved) {
+                highScore = parseInt(saved, 10);
+            }
+        }
+
+        // ===== 事件监听 =====
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+
+                if (gameState === 'start') {
+                    startGame();
+                } else if (gameState === 'playing') {
+                    jump();
+                } else if (gameState === 'gameover') {
+                    startGame();
+                }
+            }
+        });
+
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (gameState === 'playing') {
+                jump();
+            } else if (gameState === 'start' || gameState === 'gameover') {
+                startGame();
+            }
+        });
+
+        canvas.addEventListener('mousedown', (e) => {
+            if (gameState === 'playing') {
+                jump();
+            }
+        });
+
+        startBtn.addEventListener('click', startGame);
+        restartBtn.addEventListener('click', startGame);
+
+        // ===== 初始化 =====
+        loadHighScore();
+        initBackground();
+        drawBackground();
+        drawPlayer();
+
+        console.log('🎮 跳怪兽小游戏已加载！按空格键开始游戏');
+    </script>
+</body>
+</html>
