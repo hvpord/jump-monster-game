@@ -231,16 +231,16 @@
         }
         /* ===== 音乐按钮 ===== */
         .music-btn {
-            position: absolute;
-            bottom: clamp(8px, 2vh, 15px);
-            left: clamp(10px, 2.5vw, 20px);
+           position: absolute;
+            top: clamp(8px, 2vh, 15px);
+            right: clamp(70px, 12vw, 110px);
             z-index: 5;
             width: 40px;
             height: 40px;
-            border: 2px solid rgba(255,255,255,0.3);
+            border: 2px solid rgba(255,255,255,0.15);
             border-radius: 50%;
-            background: rgba(0,0,0,0.4);
-            color: #fff;
+            background: rgba(255,255,255,0.08);
+            color: #888;
             font-size: 20px;
             cursor: pointer;
             transition: all 0.3s;
@@ -252,21 +252,21 @@
             -webkit-user-select: none;
         }
         .music-btn:hover {
+            border-color: rgba(255,255,255,0.3);
+            background: rgba(255,255,255,0.15);
+            color: #bbb;
+        }
+        .music-btn.on {
             border-color: #e94560;
-            background: rgba(233,69,96,0.3);
-            transform: scale(1.1);
+            background: rgba(233,69,96,0.25);
+            color: #fff;
+            box-shadow: 0 0 15px rgba(233,69,96,0.3);
         }
-        .music-btn.muted {
-            opacity: 0.5;
-        }
-        .music-btn.muted::after {
-            content: '';
-            position: absolute;
-            width: 2px;
-            height: 26px;
-            background: #e94560;
-            transform: rotate(45deg);
-            border-radius: 1px;
+        .music-btn.on:hover {
+            border-color: #ff6b6b;
+            background: rgba(233,69,96,0.4);
+            color: #fff;
+            box-shadow: 0 0 20px rgba(233,69,96,0.5);
         }
   </style>
 </head>
@@ -294,7 +294,7 @@
                 每局 shitou 和多多会轮流扮演小人与怪兽哦！
             </div>
            <button id="startBtn">开始游戏</button>
-           <div class="version">v1.3.1</div>
+           <div class="version">v1.3.3</div>
         </div>
 
         <!-- 结束界面 -->
@@ -415,7 +415,7 @@
         let bgmScheduledNodes = [];
         let bgmTimer = null;
         let bgmBPM = 130;
-        let bgmEnabled = true;
+        let bgmEnabled = false;
         let bgmActive = false;
 
         // ===== 场景系统 =====
@@ -2190,8 +2190,8 @@
             gameOverScreen.style.display = 'none';
 
            initBackground();
-            // 启动背景音乐
-            startBGM();
+            // 如果用户已开启音乐按钮，启动背景音乐
+            if (document.getElementById('musicBtn').classList.contains('on')) startBGM();
             requestAnimationFrame(gameLoop);
         }
 
@@ -2414,14 +2414,15 @@
             bgmStopAll();
         }
 
-        function toggleBGM() {
-            if (bgmActive) {
+       function toggleBGM() {
+            const btn = document.getElementById('musicBtn');
+            if (btn.classList.contains('on')) {
+                btn.classList.remove('on');
                 stopBGM();
                 bgmEnabled = false;
-                document.getElementById('musicBtn').classList.add('muted');
             } else {
+                btn.classList.add('on');
                 bgmEnabled = true;
-                document.getElementById('musicBtn').classList.remove('muted');
                 if (gameState === 'playing') startBGM();
             }
         }
