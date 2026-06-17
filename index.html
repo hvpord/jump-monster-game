@@ -244,7 +244,7 @@
                 每局 shitou 和多多会轮流扮演小人与怪兽哦！
             </div>
             <button id="startBtn">开始游戏</button>
-            <div class="version">v1.2.2</div>
+            <div class="version">v1.2.3</div>
         </div>
 
         <!-- 结束界面 -->
@@ -367,6 +367,7 @@
         let rainDrops = [];
         let lightningTimer = 0;
         let cityBuildings = [];
+        let cityLaneOffset = 0;
         let desertCamelX = 0;
         let trainX = -300;
 
@@ -1379,18 +1380,25 @@
             }
             if (currentScene === 'city') {
                 cityBuildings = [];
+                cityLaneOffset = 0;
                 let bx = 0;
-                while (bx < GAME_WIDTH * 2) {
-                    const bw = Math.random() * 40 + 30;
-                    const bh = Math.random() * 120 + 80;
+                const shapes = ['square', 'tower', 'arch', 'stepped', 'wide'];
+                while (bx < GAME_WIDTH * 2.5) {
+                    const shape = shapes[Math.floor(Math.random() * shapes.length)];
+                    const bw = Math.random() * 60 + 50;      // 50-110
+                    const bh = Math.random() * 140 + 120;    // 120-260
                     const windows = [];
-                    for (let wy = 15; wy < bh - 10; wy += 20) {
-                        for (let wx = 8; wx < bw - 5; wx += 18) {
-                            windows.push({ x: wx, y: wy, lit: Math.random() > 0.3 });
+                    const winW = 12;
+                    const winH = 16;
+                    const padX = 14;
+                    const padY = 22;
+                    for (let wy = padY; wy < bh - padY; wy += padY) {
+                        for (let wx = padX; wx < bw - padX; wx += padX) {
+                            windows.push({ x: wx, y: wy, w: winW, h: winH, lit: Math.random() > 0.25 });
                         }
                     }
-                    cityBuildings.push({ x: bx, width: bw, height: bh, windows });
-                    bx += bw + Math.random() * 15 + 5;
+                    cityBuildings.push({ x: bx, width: bw, height: bh, shape, windows });
+                    bx += bw + Math.random() * 50 + 30;  // 30-80 间距
                 }
             }
             if (currentScene === 'desert') {
@@ -1428,14 +1436,27 @@
 
             // 城市建筑滚动
             if (currentScene === 'city') {
-                const moveSpeed = getCurrentMonsterSpeed() * 0.15;
+                const moveSpeed = getCurrentMonsterSpeed() * 0.12;
                 cityBuildings.forEach(b => { b.x -= moveSpeed; });
-                if (cityBuildings.length > 0 && cityBuildings[0].x + cityBuildings[0].width < -50) {
+                cityLaneOffset = (cityLaneOffset + getCurrentMonsterSpeed() * 0.5) % 80;
+                if (cityBuildings.length > 1 && cityBuildings[0].x + cityBuildings[0].width < -50) {
                     const first = cityBuildings.shift();
                     const last = cityBuildings[cityBuildings.length - 1];
-                    first.x = last.x + last.width + Math.random() * 15 + 5;
-                    first.width = Math.random() * 40 + 30;
-                    first.height = Math.random() * 120 + 80;
+                    const shapes = ['square', 'tower', 'arch', 'stepped', 'wide'];
+                    first.x = last.x + last.width + Math.random() * 50 + 30;
+                    first.shape = shapes[Math.floor(Math.random() * shapes.length)];
+                    first.width = Math.random() * 60 + 50;
+                    first.height = Math.random() * 140 + 120;
+                    const winW = 12;
+                    const winH = 16;
+                    const padX = 14;
+                    const padY = 22;
+                    first.windows = [];
+                    for (let wy = padY; wy < first.height - padY; wy += padY) {
+                        for (let wx = padX; wx < first.width - padX; wx += padX) {
+                            first.windows.push({ x: wx, y: wy, w: winW, h: winH, lit: Math.random() > 0.25 });
+                        }
+                    }
                     cityBuildings.push(first);
                 }
             }
@@ -1574,29 +1595,74 @@
 
             drawClouds(0.7);
 
-            // 高楼大厦
+            // 高楼大厦（更大、更稀疏、形状多样）
             cityBuildings.forEach(b => {
-                ctx.fillStyle = '#546e7a';
-                ctx.fillRect(b.x, GROUND_Y - b.height, b.width, b.height);
-                // 窗户
-                ctx.fillStyle = '#fff59d';
-                b.windows.forEach(w => {
-                    if (w.lit) {
-                        ctx.fillRect(b.x + w.x, GROUND_Y - b.height + w.y, 8, 10);
-                    }
-                });
-                // 楼体高光
-                ctx.fillStyle = 'rgba(255,255,255,0.1)';
-                ctx.fillRect(b.x + 4, GROUND_Y - b.height, 6, b.height);
+                drawBuilding(b);
             });
 
             drawGround('#455a64', '#90a4ae', 25, 35);
-            // 马路白线
+
+            // 马路斑马线（使用独立偏移，速度较慢）
             ctx.fillStyle = '#fff';
-            groundOffset = (groundOffset + getCurrentMonsterSpeed()) % 60;
-            for (let x = -groundOffset; x < GAME_WIDTH; x += 60) {
-                ctx.fillRect(x, GROUND_Y + 25, 30, 4);
+            for (let x = -cityLaneOffset; x < GAME_WIDTH; x += 80) {
+                ctx.fillRect(x, GROUND_Y + 25, 40, 5);
             }
+        }
+
+        function drawBuilding(b) {
+            const bx = b.x;
+            const by = GROUND_Y - b.height;
+            const bw = b.width;
+            const bh = b.height;
+
+            ctx.save();
+            ctx.translate(bx, by);
+
+            // 楼体
+            ctx.fillStyle = '#546e7a';
+            switch (b.shape) {
+                case 'square':
+                    ctx.fillRect(0, 0, bw, bh);
+                    break;
+                case 'tower':
+                    ctx.fillRect(bw * 0.15, 0, bw * 0.7, bh);
+                    ctx.fillRect(0, -bh * 0.15, bw, bh * 0.15);
+                    break;
+                case 'arch':
+                    ctx.fillRect(0, bh * 0.25, bw, bh * 0.75);
+                    ctx.beginPath();
+                    ctx.arc(bw / 2, bh * 0.25, bw / 2, Math.PI, 0);
+                    ctx.lineTo(bw, bh * 0.25);
+                    ctx.lineTo(0, bh * 0.25);
+                    ctx.fill();
+                    break;
+                case 'stepped':
+                    ctx.fillRect(0, 0, bw, bh);
+                    ctx.fillStyle = '#607d8b';
+                    ctx.fillRect(bw * 0.1, -bh * 0.12, bw * 0.8, bh * 0.12);
+                    ctx.fillRect(bw * 0.25, -bh * 0.22, bw * 0.5, bh * 0.1);
+                    break;
+                case 'wide':
+                default:
+                    ctx.fillRect(0, 0, bw, bh);
+                    ctx.fillStyle = '#607d8b';
+                    ctx.fillRect(bw * 0.2, -bh * 0.08, bw * 0.6, bh * 0.08);
+                    break;
+            }
+
+            // 窗户（更大的窗户）
+            ctx.fillStyle = '#fff59d';
+            b.windows.forEach(w => {
+                if (w.lit) {
+                    ctx.fillRect(w.x, w.y, w.w, w.h);
+                }
+            });
+
+            // 楼体高光
+            ctx.fillStyle = 'rgba(255,255,255,0.12)';
+            ctx.fillRect(bw * 0.08, 0, bw * 0.12, bh);
+
+            ctx.restore();
         }
 
         // ===== 沙漠 =====
@@ -2026,6 +2092,7 @@
             rainDrops = [];
             lightningTimer = 0;
             cityBuildings = [];
+            cityLaneOffset = 0;
             desertCamelX = 0;
             trainX = -300;
 
