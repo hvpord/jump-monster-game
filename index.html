@@ -220,7 +220,46 @@
             opacity: 0;
             pointer-events: none;
         }
-    </style>
+   </style>
+        /* ===== 音乐按钮 ===== */
+        .music-btn {
+            position: absolute;
+            bottom: clamp(8px, 2vh, 15px);
+            left: clamp(10px, 2.5vw, 20px);
+            z-index: 5;
+            width: 40px;
+            height: 40px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            background: rgba(0,0,0,0.4);
+            color: #fff;
+            font-size: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .music-btn:hover {
+            border-color: #e94560;
+            background: rgba(233,69,96,0.3);
+            transform: scale(1.1);
+        }
+        .music-btn.muted {
+            opacity: 0.5;
+        }
+        .music-btn.muted::after {
+            content: '';
+            position: absolute;
+            width: 2px;
+            height: 26px;
+            background: #e94560;
+            transform: rotate(45deg);
+            border-radius: 1px;
+        }
 </head>
 <body>
     <div id="gameContainer">
@@ -231,7 +270,9 @@
         <div id="scoreDisplay">得分: 0</div>
 
         <!-- 道具状态显示 -->
-        <div id="powerupDisplay"></div>
+       <div id="powerupDisplay"></div>
+        <!-- 音乐控制 -->
+        <button id="musicBtn" class="music-btn" title="背景音乐开关">🎵</button>
 
         <!-- 开始界面 -->
         <div id="startScreen">
@@ -243,8 +284,8 @@
                 <span>🔨 锤子</span> 手持挥舞打飞怪兽10秒 &nbsp; <span>🪽 翅膀</span> 悬空飞行10秒 &nbsp; <span>🪨 石块</span> 自动踢出击飞怪兽 &nbsp; <span>🛡️ 盾牌</span> 挡一次怪兽并打飞<br>
                 每局 shitou 和多多会轮流扮演小人与怪兽哦！
             </div>
-            <button id="startBtn">开始游戏</button>
-            <div class="version">v1.2.3</div>
+           <button id="startBtn">开始游戏</button>
+           <div class="version">v1.3.0</div>
         </div>
 
         <!-- 结束界面 -->
@@ -358,7 +399,15 @@
         let flyingSpawnTimer = 0;
         let nextFlyingSpawnTime = 0;
         let passedMonsters = 0;
-        let lastPlayerWasShitou = null;  // 用于头像角色严格轮换
+       let lastPlayerWasShitou = null;  // 用于头像角色严格轮换
+        // ===== BGM 系统变量 =====
+        let bgmAudioCtx = null;
+        let bgmIsPlaying = false;
+        let bgmScheduledNodes = [];
+        let bgmTimer = null;
+        let bgmBPM = 130;
+        let bgmEnabled = true;
+        let bgmActive = false;
 
         // ===== 场景系统 =====
         let currentScene = 'night';
@@ -2115,7 +2164,9 @@
             startScreen.classList.add('hidden');
             gameOverScreen.style.display = 'none';
 
-            initBackground();
+           initBackground();
+            // 启动背景音乐
+            startBGM();
             requestAnimationFrame(gameLoop);
         }
 
@@ -2131,14 +2182,222 @@
 
             finalScoreEl.textContent = score;
             highScoreEl.textContent = highScore;
-            gameOverScreen.style.display = 'flex';
+           gameOverScreen.style.display = 'flex';
+            // 停止背景音乐
+            stopBGM();
         }
 
         // ===== 加载最高分 =====
-        function loadHighScore() {
-            const saved = localStorage.getItem('monsterJumpHighScore');
-            if (saved) {
-                highScore = parseInt(saved, 10);
+       function loadHighScore() {
+           const saved = localStorage.getItem('monsterJumpHighScore');
+           if (saved) {
+               highScore = parseInt(saved, 10);
+           }
+       }
+        // ============================================
+        //  BGM 系统 — 8-bit 程序化背景音乐
+        // ============================================
+
+        const BGM_NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+        function bgmNoteToFreq(note) {
+            if (!note || note === '-') return 0;
+            const m = note.match(/^([A-G]#?)(\d+)$/);
+            if (!m) return 0;
+            const semitone = BGM_NOTE_NAMES.indexOf(m[1]);
+            const octave = parseInt(m[2], 10);
+            return 440 * Math.pow(2, (semitone - 9 + (octave - 4) * 12) / 12);
+        }
+
+        function bgmPlayOsc(oscType, freq, duration, startTime, gainValue, detuneCents) {
+            if (freq <= 0) return;
+            const osc = bgmAudioCtx.createOscillator();
+            const gain = bgmAudioCtx.createGain();
+            osc.type = oscType;
+            osc.frequency.value = freq;
+            if (detuneCents) osc.detune.value = detuneCents;
+            gain.gain.setValueAtTime(0, startTime);
+            gain.gain.linearRampToValueAtTime(gainValue, startTime + 0.008);
+            gain.gain.setValueAtTime(gainValue, startTime + duration - 0.04);
+            gain.gain.linearRampToValueAtTime(0, startTime + duration);
+            osc.connect(gain);
+            gain.connect(bgmAudioCtx.destination);
+            osc.start(startTime);
+            osc.stop(startTime + duration);
+            bgmScheduledNodes.push({ osc, gain });
+        }
+
+        function bgmPlayDrum(type, startTime, duration) {
+            const bufferSize = Math.ceil(bgmAudioCtx.sampleRate * duration);
+            const buffer = bgmAudioCtx.createBuffer(1, bufferSize, bgmAudioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            if (type === 'kick') {
+                for (let i = 0; i < bufferSize; i++) {
+                    const t = i / bgmAudioCtx.sampleRate;
+                    const freq = 120 - t * 400;
+                    data[i] = Math.sin(2 * Math.PI * Math.max(freq, 30) * t) * Math.max(0, 1 - t * 8);
+                }
+            } else if (type === 'snare') {
+                for (let i = 0; i < bufferSize; i++) {
+                    const t = i / bgmAudioCtx.sampleRate;
+                    data[i] = (Math.random() * 2 - 1) * Math.max(0, 1 - t * 5);
+                }
+            } else if (type === 'hihat') {
+                for (let i = 0; i < bufferSize; i++) {
+                    const t = i / bgmAudioCtx.sampleRate;
+                    data[i] = (Math.random() * 2 - 1) * Math.max(0, 1 - t * 15);
+                }
+            }
+            const source = bgmAudioCtx.createBufferSource();
+            source.buffer = buffer;
+            const gain = bgmAudioCtx.createGain();
+            gain.gain.value = 1;
+            source.connect(gain);
+            gain.connect(bgmAudioCtx.destination);
+            source.start(startTime);
+            bgmScheduledNodes.push({ source, gain });
+        }
+
+        function bgmScheduleMelody(startTime, bpm) {
+            const beat = 60 / bpm;
+            const mA = [
+                ['E4',0.75],['G4',0.25],['C5',0.5],['D5',0.5],
+                ['E5',1],['D5',0.5],['C5',0.5],
+                ['B4',0.75],['C5',0.25],['D5',0.5],['E5',0.5],
+                ['D5',1.5],['-',0.5],
+                ['C5',0.5],['E5',0.5],['G5',0.5],['E5',0.5],
+                ['D5',0.5],['C5',0.5],['B4',0.5],['G4',0.5],
+                ['C5',1],['E5',1],['D5',1.5],['-',0.5],
+            ];
+            const mB = [
+                ['A4',0.5],['C5',0.5],['E5',0.75],['D5',0.25],
+                ['C5',0.5],['B4',0.5],['A4',0.5],['-',0.5],
+                ['F4',0.75],['A4',0.25],['C5',0.5],['E5',0.5],
+                ['D5',1],['C5',1],
+                ['G4',0.5],['B4',0.5],['D5',0.5],['G5',0.5],
+                ['E5',0.5],['D5',0.5],['C5',1],
+                ['F5',0.5],['E5',0.5],['D5',0.5],['C5',0.5],
+                ['B4',1],['G4',1],
+            ];
+            const mA2 = [
+                ['E4',0.75],['G4',0.25],['C5',0.5],['D5',0.5],
+                ['E5',1],['D5',0.5],['C5',0.5],
+                ['B4',0.75],['C5',0.25],['D5',0.5],['E5',0.5],
+                ['D5',1.5],['-',0.5],
+                ['C5',0.5],['E5',0.5],['G5',0.5],['E5',0.5],
+                ['D5',0.5],['C5',0.5],['B4',0.5],['G4',0.5],
+                ['C5',1],['E5',1],['C5',1.5],['-',0.5],
+            ];
+            const allNotes = [...mA, ...mB, ...mA2];
+            let t = 0;
+            for (const [note, beats] of allNotes) {
+                const freq = bgmNoteToFreq(note);
+                const dur = beats * beat * 0.95;
+                bgmPlayOsc('square', freq, dur, startTime + t * beat, 0.07);
+                t += beats;
+            }
+        }
+
+        function bgmScheduleBass(startTime, bpm) {
+            const beat = 60 / bpm;
+            const notes = [
+                ['C3',2],['G2',2],['A2',2],['E2',2],
+                ['F2',2],['C3',2],['G2',1.5],['G2',0.5],
+                ['C3',2],['G2',2],['A2',2],['E2',2],
+                ['F2',2],['C3',2],['G2',1.5],['G2',0.5],
+                ['F2',2],['C3',2],['G2',2],['A2',2],
+                ['F2',2],['G2',2],['C3',2],['C3',2],
+                ['C3',2],['G2',2],['A2',2],['E2',2],
+                ['F2',2],['C3',2],['G2',1.5],['G2',0.5],
+            ];
+            let t = 0;
+            for (const [note, beats] of notes) {
+                const freq = bgmNoteToFreq(note);
+                const dur = beats * beat * 0.98;
+                bgmPlayOsc('triangle', freq, dur, startTime + t * beat, 0.1);
+                t += beats;
+            }
+        }
+
+        function bgmScheduleDrums(startTime, bpm) {
+            const beat = 60 / bpm;
+            for (let i = 0; i < 96; i++) {
+                const t = startTime + i * beat;
+                if (i % 4 === 0) bgmPlayDrum('kick', t, beat * 0.12);
+                if (i % 4 === 1 || i % 4 === 3) bgmPlayDrum('snare', t, beat * 0.1);
+                if (i % 2 === 1) bgmPlayDrum('hihat', t, beat * 0.06);
+            }
+        }
+
+        function bgmSchedulePad(startTime, bpm) {
+            const beat = 60 / bpm;
+            const chords = [
+                ['C3','E3','G3'],['G2','B2','D3'],
+                ['A2','C3','E3'],['E2','G2','B2'],
+                ['F2','A2','C3'],['C3','E3','G3'],
+                ['G2','B2','D3'],['G2','B2','D3'],
+            ];
+            const repeat = [...chords,...chords,...chords,...chords];
+            let t = 0;
+            for (const chord of repeat) {
+                const dur = 4 * beat * 0.98;
+                for (const nn of chord) {
+                    bgmPlayOsc('sawtooth', bgmNoteToFreq(nn), dur, startTime + t * beat, 0.015, Math.random()*5-2.5);
+                }
+                t += 4;
+            }
+        }
+
+        function bgmStopAll() {
+            if (bgmTimer) { clearTimeout(bgmTimer); bgmTimer = null; }
+            for (const node of bgmScheduledNodes) {
+                try {
+                    if (node.osc) { node.osc.stop(); node.osc.disconnect(); }
+                    if (node.source) { node.source.stop(); node.source.disconnect(); }
+                    if (node.gain) node.gain.disconnect();
+                } catch(e) {}
+            }
+            bgmScheduledNodes = [];
+            bgmIsPlaying = false;
+        }
+
+        function getBgmBPM() {
+            const level = Math.floor(score / 10);
+            return Math.min(130 + level * 3, 175);
+        }
+
+        function startBGM() {
+            if (!bgmEnabled) return;
+            bgmStopAll();
+            if (!bgmAudioCtx) bgmAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (bgmAudioCtx.state === 'suspended') bgmAudioCtx.resume();
+            bgmIsPlaying = true;
+            bgmActive = true;
+            const bpm = getBgmBPM();
+            const now = bgmAudioCtx.currentTime;
+            bgmScheduleMelody(now + 0.1, bpm);
+            bgmScheduleBass(now + 0.1, bpm);
+            bgmScheduleDrums(now + 0.1, bpm);
+            bgmSchedulePad(now + 0.1, bpm);
+            const totalDuration = (24 * 4 / bpm) * 60 + 0.5;
+            bgmTimer = setTimeout(() => {
+                if (bgmIsPlaying && bgmActive) startBGM();
+            }, totalDuration * 1000 - 200);
+        }
+
+        function stopBGM() {
+            bgmActive = false;
+            bgmStopAll();
+        }
+
+        function toggleBGM() {
+            if (bgmActive) {
+                stopBGM();
+                bgmEnabled = false;
+                document.getElementById('musicBtn').classList.add('muted');
+            } else {
+                bgmEnabled = true;
+                document.getElementById('musicBtn').classList.remove('muted');
+                if (gameState === 'playing') startBGM();
             }
         }
 
@@ -2173,7 +2432,8 @@
         });
 
         startBtn.addEventListener('click', startGame);
-        restartBtn.addEventListener('click', startGame);
+       restartBtn.addEventListener('click', startGame);
+        document.getElementById('musicBtn').addEventListener('click', toggleBGM);
 
         // ===== 初始化 =====
         loadHighScore();
