@@ -2061,8 +2061,9 @@
         }
 
         // ===== 游戏主循环 =====
-        function gameLoop() {
-            if (gameState !== 'playing') return;
+       function gameLoop() {
+           if (gameState !== 'playing') return;
+            try {
 
             ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
@@ -2114,8 +2115,23 @@
             updatePowerupDisplay();
             cleanupObjects();
 
-            frameCount++;
-            requestAnimationFrame(gameLoop);
+           frameCount++;
+           requestAnimationFrame(gameLoop);
+           } catch (e) {
+               console.error('游戏循环异常:', e);
+                // 显示错误信息到画布
+               ctx.fillStyle = '#ff0000';
+                ctx.font = '14px monospace';
+                ctx.fillText('错误: ' + e.message, 10, 20);
+                ctx.fillText('错误位置: ' + e.stack.split('\n')[1].trim(), 10, 40);
+                ctx.fillText('游戏已暂停，查看控制台获取详细信息', 10, 60);
+                // 重置为安全状态
+                gameState = 'gameover';
+                monsters = [];
+                items = [];
+                projectiles = [];
+                stopBGM();
+            }
         }
 
         // ===== 开始游戏 =====
