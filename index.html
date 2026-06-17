@@ -62,8 +62,12 @@
             justify-content: center;
             align-items: center;
             background: rgba(15, 52, 96, 0.95);
-            z-index: 10;
-            transition: opacity 0.5s;
+           z-index: 10;
+           transition: opacity 0.5s;
+            overflow-y: auto;
+            padding: 12px 0;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin;
         }
 
         #startScreen h1 {
@@ -82,7 +86,8 @@
         #startScreen .subtitle {
             font-size: clamp(14px, 3vw, 18px);
             color: #a0a0a0;
-            margin-bottom: clamp(15px, 4vh, 40px);
+           margin-bottom: clamp(15px, 4vh, 40px);
+            margin-bottom: clamp(10px, 2vh, 20px);
         }
 
         #startScreen .instructions {
@@ -136,7 +141,11 @@
             justify-content: center;
             align-items: center;
             background: rgba(15, 52, 96, 0.95);
-            z-index: 10;
+           z-index: 10;
+            overflow-y: auto;
+            padding: 12px 0;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin;
         }
 
         #gameOverScreen h2 {
