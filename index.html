@@ -307,7 +307,7 @@
                 点击空格或者屏幕躲避怪兽
             </div>
            <button id="startBtn">开始游戏</button>
-           <div class="version">v1.3.4</div>
+           <div class="version">v1.3.5</div>
         </div>
 
         <!-- 结束界面 -->
@@ -430,6 +430,8 @@
         let bgmBPM = 130;
         let bgmEnabled = false;
         let bgmActive = false;
+        let bgmMasterGain = null;
+        let bgmDrumBuffers = {};
 
         // ===== 场景系统 =====
         let currentScene = 'night';
@@ -473,7 +475,7 @@
         // ===== 初始化背景元素 =====
         function initBackground() {
             bgStars = [];
-            for (let i = 0; i < 50; i++) {
+            for (let i = 0; i < 30; i++) {
                 bgStars.push({
                     x: Math.random() * GAME_WIDTH,
                     y: Math.random() * (GROUND_Y - 50),
@@ -798,8 +800,6 @@
 
                 // 翅膀（跟小人一样）
                 ctx.fillStyle = 'rgba(135, 206, 235, 0.85)';
-                ctx.shadowColor = '#fff';
-                ctx.shadowBlur = 10;
                 const flap = Math.sin(this.animFrame * 0.4) * 8;
 
                 ctx.beginPath();
@@ -835,8 +835,6 @@
             drawLightning(x, y) {
                 ctx.save();
                 ctx.fillStyle = '#ffd700';
-                ctx.shadowColor = '#fff';
-                ctx.shadowBlur = 8;
                 ctx.beginPath();
                 ctx.moveTo(x - 6, y - 10);
                 ctx.lineTo(x + 2, y - 10);
@@ -863,9 +861,6 @@
         // ===== 石块通用绘制（更真实的岩石） =====
         function drawRock(ctx, size) {
             ctx.save();
-            ctx.shadowColor = 'rgba(0,0,0,0.4)';
-            ctx.shadowBlur = 5;
-            ctx.shadowOffsetY = 3;
 
             // 主体：不规则多边形
             ctx.fillStyle = '#7f8c8d';
@@ -980,8 +975,6 @@
 
             drawWings(cx, cy) {
                 ctx.fillStyle = '#87ceeb';
-                ctx.shadowColor = '#fff';
-                ctx.shadowBlur = 10;
                 ctx.beginPath();
                 ctx.moveTo(cx, cy - 4);
                 ctx.quadraticCurveTo(cx - 16, cy - 14, cx - 22, cy + 2);
@@ -1011,8 +1004,6 @@
                 ctx.fillStyle = '#3498db';
                 ctx.strokeStyle = '#fff';
                 ctx.lineWidth = 2;
-                ctx.shadowColor = '#3498db';
-                ctx.shadowBlur = 8;
 
                 // 经典盾牌轮廓
                 ctx.beginPath();
@@ -1365,8 +1356,6 @@
                 ctx.fillStyle = '#3498db';
                 ctx.strokeStyle = '#fff';
                 ctx.lineWidth = 3;
-                ctx.shadowColor = '#3498db';
-                ctx.shadowBlur = 10;
 
                 // 盾牌主体
                 ctx.beginPath();
@@ -1396,8 +1385,6 @@
             if (player.flyTimer > 0) {
                 ctx.save();
                 ctx.fillStyle = 'rgba(135, 206, 235, 0.85)';
-                ctx.shadowColor = '#fff';
-                ctx.shadowBlur = 10;
                 const flap = Math.sin(frameCount * 0.4) * 8;
 
                 ctx.beginPath();
@@ -1440,7 +1427,7 @@
             // 初始化场景元素
             if (currentScene === 'rain') {
                 rainDrops = [];
-                for (let i = 0; i < 120; i++) {
+                for (let i = 0; i < 40; i++) {
                     rainDrops.push({
                         x: Math.random() * GAME_WIDTH,
                         y: Math.random() * GAME_HEIGHT,
@@ -1459,10 +1446,10 @@
                     const bw = Math.random() * 60 + 50;      // 50-110
                     const bh = Math.random() * 140 + 120;    // 120-260
                     const windows = [];
-                    const winW = 12;
-                    const winH = 16;
-                    const padX = 14;
-                    const padY = 22;
+                    const winW = 16;
+                    const winH = 20;
+                    const padX = 20;
+                    const padY = 28;
                     for (let wy = padY; wy < bh - padY; wy += padY) {
                         for (let wx = padX; wx < bw - padX; wx += padX) {
                             windows.push({ x: wx, y: wy, w: winW, h: winH, lit: Math.random() > 0.25 });
@@ -1552,8 +1539,6 @@
         function drawSun(x, y, r, color = '#f1c40f') {
             ctx.save();
             ctx.fillStyle = color;
-            ctx.shadowColor = color;
-            ctx.shadowBlur = 30;
             ctx.beginPath();
             ctx.arc(x, y, r, 0, Math.PI * 2);
             ctx.fill();
@@ -1563,8 +1548,6 @@
         function drawMoon(x, y, r) {
             ctx.save();
             ctx.fillStyle = '#f5f5f5';
-            ctx.shadowColor = '#fff';
-            ctx.shadowBlur = 20;
             ctx.beginPath();
             ctx.arc(x, y, r, 0, Math.PI * 2);
             ctx.fill();
@@ -1685,6 +1668,7 @@
             const by = GROUND_Y - b.height;
             const bw = b.width;
             const bh = b.height;
+            if (bx + bw < -50 || bx > GAME_WIDTH) return;
 
             ctx.save();
             ctx.translate(bx, by);
@@ -2069,6 +2053,22 @@
             monsters = monsters.filter(m => m.x + m.width > -100 && m.y < GAME_HEIGHT + 100);
             items = items.filter(i => i.x + i.width > -50 && !i.collected);
             projectiles = projectiles.filter(p => p.x < GAME_WIDTH + 100);
+
+            // 性能保护：限制同屏最大数量，防止老设备卡顿
+            const MAX_MONSTERS = 8;
+            const MAX_ITEMS = 3;
+            const MAX_PROJECTILES = 3;
+            if (monsters.length > MAX_MONSTERS) {
+                monsters.sort((a, b) => a.x - b.x);
+                monsters = monsters.slice(0, MAX_MONSTERS);
+            }
+            if (items.length > MAX_ITEMS) {
+                items.sort((a, b) => a.x - b.x);
+                items = items.slice(0, MAX_ITEMS);
+            }
+            if (projectiles.length > MAX_PROJECTILES) {
+                projectiles = projectiles.slice(-MAX_PROJECTILES);
+            }
         }
 
         // ===== 更新背景动画 =====
@@ -2247,7 +2247,7 @@
         }
 
         function bgmPlayOsc(oscType, freq, duration, startTime, gainValue, detuneCents) {
-            if (freq <= 0) return;
+            if (freq <= 0 || !bgmMasterGain) return;
             const osc = bgmAudioCtx.createOscillator();
             const gain = bgmAudioCtx.createGain();
             osc.type = oscType;
@@ -2258,41 +2258,39 @@
             gain.gain.setValueAtTime(gainValue, startTime + duration - 0.04);
             gain.gain.linearRampToValueAtTime(0, startTime + duration);
             osc.connect(gain);
-            gain.connect(bgmAudioCtx.destination);
+            gain.connect(bgmMasterGain);
             osc.start(startTime);
             osc.stop(startTime + duration);
-            bgmScheduledNodes.push({ osc, gain });
+        }
+
+        function bgmEnsureDrumBuffers() {
+            if (!bgmAudioCtx || bgmDrumBuffers.kick) return;
+            const sampleRate = bgmAudioCtx.sampleRate;
+            function makeBuffer(duration, fn) {
+                const bufferSize = Math.ceil(sampleRate * duration);
+                const buffer = bgmAudioCtx.createBuffer(1, bufferSize, sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = fn(i / sampleRate);
+                }
+                return buffer;
+            }
+            bgmDrumBuffers.kick = makeBuffer(0.5, t => Math.sin(2 * Math.PI * Math.max(120 - t * 400, 30) * t) * Math.max(0, 1 - t * 8));
+            bgmDrumBuffers.snare = makeBuffer(0.5, t => (Math.random() * 2 - 1) * Math.max(0, 1 - t * 5));
+            bgmDrumBuffers.hihat = makeBuffer(0.3, t => (Math.random() * 2 - 1) * Math.max(0, 1 - t * 15));
         }
 
         function bgmPlayDrum(type, startTime, duration) {
-            const bufferSize = Math.ceil(bgmAudioCtx.sampleRate * duration);
-            const buffer = bgmAudioCtx.createBuffer(1, bufferSize, bgmAudioCtx.sampleRate);
-            const data = buffer.getChannelData(0);
-            if (type === 'kick') {
-                for (let i = 0; i < bufferSize; i++) {
-                    const t = i / bgmAudioCtx.sampleRate;
-                    const freq = 120 - t * 400;
-                    data[i] = Math.sin(2 * Math.PI * Math.max(freq, 30) * t) * Math.max(0, 1 - t * 8);
-                }
-            } else if (type === 'snare') {
-                for (let i = 0; i < bufferSize; i++) {
-                    const t = i / bgmAudioCtx.sampleRate;
-                    data[i] = (Math.random() * 2 - 1) * Math.max(0, 1 - t * 5);
-                }
-            } else if (type === 'hihat') {
-                for (let i = 0; i < bufferSize; i++) {
-                    const t = i / bgmAudioCtx.sampleRate;
-                    data[i] = (Math.random() * 2 - 1) * Math.max(0, 1 - t * 15);
-                }
-            }
+            if (!bgmMasterGain || !bgmDrumBuffers[type]) return;
             const source = bgmAudioCtx.createBufferSource();
-            source.buffer = buffer;
+            source.buffer = bgmDrumBuffers[type];
             const gain = bgmAudioCtx.createGain();
-            gain.gain.value = 0.15;
+            gain.gain.setValueAtTime(1, startTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
             source.connect(gain);
-            gain.connect(bgmAudioCtx.destination);
+            gain.connect(bgmMasterGain);
             source.start(startTime);
-            bgmScheduledNodes.push({ source, gain });
+            source.stop(startTime + duration);
         }
 
         function bgmScheduleMelody(startTime, bpm) {
@@ -2378,7 +2376,7 @@
             let t = 0;
             for (const chord of repeat) {
                 const dur = 4 * beat * 0.98;
-                for (const nn of chord) {
+                for (const nn of chord.slice(0, 2)) {
                     bgmPlayOsc('sawtooth', bgmNoteToFreq(nn), dur, startTime + t * beat, 0.01, Math.random()*5-2.5);
                 }
                 t += 4;
@@ -2387,12 +2385,12 @@
 
         function bgmStopAll() {
             if (bgmTimer) { clearTimeout(bgmTimer); bgmTimer = null; }
-            for (const node of bgmScheduledNodes) {
+            if (bgmMasterGain) {
                 try {
-                    if (node.osc) { node.osc.stop(); node.osc.disconnect(); }
-                    if (node.source) { node.source.stop(); node.source.disconnect(); }
-                    if (node.gain) node.gain.disconnect();
-                } catch(e) {}
+                    bgmMasterGain.gain.setValueAtTime(0, bgmAudioCtx.currentTime);
+                    bgmMasterGain.disconnect();
+                } catch (e) {}
+                bgmMasterGain = null;
             }
             bgmScheduledNodes = [];
             bgmIsPlaying = false;
@@ -2406,8 +2404,13 @@
         function startBGM() {
             if (!bgmEnabled) return;
             bgmStopAll();
-            if (!bgmAudioCtx) bgmAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            if (bgmAudioCtx.state === 'suspended') bgmAudioCtx.resume();
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            if (!bgmAudioCtx) bgmAudioCtx = audioCtx;
+            bgmEnsureDrumBuffers();
+            bgmMasterGain = bgmAudioCtx.createGain();
+            bgmMasterGain.gain.value = 0.45;
+            bgmMasterGain.connect(bgmAudioCtx.destination);
             bgmIsPlaying = true;
             bgmActive = true;
             const bpm = getBgmBPM();
