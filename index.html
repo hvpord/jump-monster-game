@@ -70,12 +70,24 @@
             scrollbar-width: thin;
         }
 
-        #startScreen h1 {
+       #startScreen h1 {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: clamp(8px, 2vw, 16px);
             font-size: clamp(28px, 7vw, 48px);
             color: #e94560;
             text-shadow: 0 0 20px rgba(233, 69, 96, 0.5);
             margin-bottom: clamp(10px, 3vh, 20px);
-            animation: pulse 2s ease-in-out infinite;
+           animation: pulse 2s ease-in-out infinite;
+        }
+        .title-avatar {
+            width: clamp(32px, 7vw, 52px);
+            height: clamp(32px, 7vw, 52px);
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid rgba(255,255,255,0.2);
+            flex-shrink: 0;
         }
 
         @keyframes pulse {
@@ -285,13 +297,17 @@
 
         <!-- 开始界面 -->
         <div id="startScreen">
-            <h1>🏃 跳怪兽 🐾</h1>
+           <h1>
+                <img src="shitou.png" class="title-avatar" alt="石头">
+                <span>跳怪兽</span>
+                <img src="duoduo.png" class="title-avatar" alt="多多">
+            </h1>
             <p class="subtitle">躲避怪兽，挑战极限！</p>
            <div class="instructions">
                 点击空格或者屏幕躲避怪兽
             </div>
            <button id="startBtn">开始游戏</button>
-           <div class="version">v1.3.3</div>
+           <div class="version">v1.3.4</div>
         </div>
 
         <!-- 结束界面 -->
