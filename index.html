@@ -513,7 +513,7 @@
             osc.type = 'sine';
             osc.frequency.setValueAtTime(280, audioCtx.currentTime);
             osc.frequency.exponentialRampToValueAtTime(560, audioCtx.currentTime + 0.12);
-            gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.35, audioCtx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.12);
             osc.start();
             osc.stop(audioCtx.currentTime + 0.12);
@@ -528,7 +528,7 @@
             osc.type = 'square';
             osc.frequency.setValueAtTime(160, audioCtx.currentTime);
             osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.15);
-            gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.35, audioCtx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
             osc.start();
             osc.stop(audioCtx.currentTime + 0.15);
@@ -545,7 +545,7 @@
                 osc.frequency.value = freq;
                 const t = audioCtx.currentTime + i * 0.05;
                 gain.gain.setValueAtTime(0, t);
-                gain.gain.linearRampToValueAtTime(0.12, t + 0.02);
+                gain.gain.linearRampToValueAtTime(0.30, t + 0.02);
                 gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
                 osc.start(t);
                 osc.stop(t + 0.2);
@@ -561,7 +561,7 @@
             osc.type = 'sawtooth';
             osc.frequency.setValueAtTime(220, audioCtx.currentTime);
             osc.frequency.exponentialRampToValueAtTime(55, audioCtx.currentTime + 0.5);
-            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
             osc.start();
             osc.stop(audioCtx.currentTime + 0.5);
@@ -2250,7 +2250,7 @@
             const source = bgmAudioCtx.createBufferSource();
             source.buffer = buffer;
             const gain = bgmAudioCtx.createGain();
-            gain.gain.value = 1;
+            gain.gain.value = 0.15;
             source.connect(gain);
             gain.connect(bgmAudioCtx.destination);
             source.start(startTime);
@@ -2292,7 +2292,7 @@
             for (const [note, beats] of allNotes) {
                 const freq = bgmNoteToFreq(note);
                 const dur = beats * beat * 0.95;
-                bgmPlayOsc('square', freq, dur, startTime + t * beat, 0.07);
+                bgmPlayOsc('square', freq, dur, startTime + t * beat, 0.035);
                 t += beats;
             }
         }
@@ -2313,7 +2313,7 @@
             for (const [note, beats] of notes) {
                 const freq = bgmNoteToFreq(note);
                 const dur = beats * beat * 0.98;
-                bgmPlayOsc('triangle', freq, dur, startTime + t * beat, 0.1);
+                bgmPlayOsc('triangle', freq, dur, startTime + t * beat, 0.06);
                 t += beats;
             }
         }
@@ -2341,7 +2341,7 @@
             for (const chord of repeat) {
                 const dur = 4 * beat * 0.98;
                 for (const nn of chord) {
-                    bgmPlayOsc('sawtooth', bgmNoteToFreq(nn), dur, startTime + t * beat, 0.015, Math.random()*5-2.5);
+                    bgmPlayOsc('sawtooth', bgmNoteToFreq(nn), dur, startTime + t * beat, 0.01, Math.random()*5-2.5);
                 }
                 t += 4;
             }
