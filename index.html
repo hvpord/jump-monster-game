@@ -399,7 +399,7 @@
         const INVINCIBLE_DURATION = 600;
         const FLY_DURATION = 600;
         const SHIELD_DURATION = 1200;
-        const JEEP_DURATION = 900;          // 15秒
+        const JEEP_AMMO = 15;            // 吉普车可发射15发后消失
         const FOOTBALL_DRIBBLE_DURATION = 360; // 6秒
         const STONE_SPEED = 9;
         const DEATH_ANIMATION_DURATION = 80;
@@ -464,6 +464,7 @@
             flyTimer: 0,
             shieldTimer: 0,
             jeepTimer: 0,
+            jeepAmmo: 0,
             footballTimer: 0,
             footballKicked: false,
             footballPending: false,
@@ -1115,9 +1116,11 @@
                 this.vx = STONE_SPEED;
                 this.vy = -3;
                 this.rotation = 0;
+                this.hit = false;
             }
 
             update() {
+                if (this.hit) return;
                 this.x += this.vx;
                 this.y += this.vy;
                 this.vy += GRAVITY;
@@ -1154,9 +1157,11 @@
                 this.width = 16;
                 this.height = 6;
                 this.vx = 12;
+                this.hit = false;
             }
 
             update() {
+                if (this.hit) return;
                 this.x += this.vx;
             }
 
@@ -1193,9 +1198,11 @@
                 this.vx = 10;
                 this.vy = -3;        // 更陡的向上斜率
                 this.trail = [];
+                this.hit = false;
             }
 
             update() {
+                if (this.hit) return;
                 // 轻微追踪最近的飞行怪兽
                 let target = null;
                 let minDist = Infinity;
@@ -1225,24 +1232,48 @@
             }
 
             draw(ctx) {
+                const cx = this.x + this.width / 2;
+                const cy = this.y + this.height / 2;
                 ctx.save();
-                // 尾焰
-                ctx.fillStyle = 'rgba(255, 100, 50, 0.6)';
+
+                // 尾焰：沿弹体中心轴线向后延伸
+                ctx.fillStyle = 'rgba(255, 120, 50, 0.65)';
                 this.trail.forEach((p, i) => {
+                    const tx = p.x + this.width / 2;
+                    const ty = p.y + this.height / 2;
+                    const radius = 2 + i * 0.6;
                     ctx.beginPath();
-                    ctx.arc(p.x - 8, p.y + this.height / 2, 2 + i * 0.5, 0, Math.PI * 2);
+                    ctx.arc(tx - this.width / 2 - 4 - i, ty, radius, 0, Math.PI * 2);
                     ctx.fill();
                 });
-                // 弹体
+
+                // 弹体：沿中心轴线绘制的尖头导弹
                 ctx.fillStyle = '#e74c3c';
                 ctx.beginPath();
-                ctx.moveTo(this.x + this.width, this.y + this.height / 2);
-                ctx.lineTo(this.x + this.width - 6, this.y);
-                ctx.lineTo(this.x, this.y + 2);
-                ctx.lineTo(this.x, this.y + this.height - 2);
-                ctx.lineTo(this.x + this.width - 6, this.y + this.height);
+                ctx.moveTo(this.x + this.width, cy);           // 鼻尖
+                ctx.lineTo(this.x + this.width - 8, this.y);   // 上肩
+                ctx.lineTo(this.x + 4, this.y + 3);            // 上尾
+                ctx.lineTo(this.x, cy);                         // 尾喷口中心
+                ctx.lineTo(this.x + 4, this.y + this.height - 3); // 下尾
+                ctx.lineTo(this.x + this.width - 8, this.y + this.height); // 下肩
                 ctx.closePath();
                 ctx.fill();
+
+                // 弹翼
+                ctx.fillStyle = '#c0392b';
+                ctx.beginPath();
+                ctx.moveTo(this.x + this.width - 10, cy);
+                ctx.lineTo(this.x + 2, this.y - 1);
+                ctx.lineTo(this.x + 6, this.y + 2);
+                ctx.closePath();
+                ctx.fill();
+                ctx.beginPath();
+                ctx.moveTo(this.x + this.width - 10, cy);
+                ctx.lineTo(this.x + 2, this.y + this.height + 1);
+                ctx.lineTo(this.x + 6, this.y + this.height - 2);
+                ctx.closePath();
+                ctx.fill();
+
                 ctx.restore();
             }
 
@@ -1266,9 +1297,11 @@
                 this.vx = 6;       // 减慢速度，延长在屏时间
                 this.vy = -2.5;
                 this.rotation = 0;
+                this.hit = false;
             }
 
             update() {
+                if (this.hit) return;
                 this.x += this.vx;
                 this.y += this.vy;
                 this.vy += GRAVITY * 0.25;
@@ -1397,13 +1430,31 @@
         function jump() {
             if (gameState !== 'playing' || player.isDead) return;
 
-            // 吉普车状态下按空格发射子弹+导弹
+            // 吉普车状态下按空格发射一发子弹或导弹
             if (player.jeepTimer > 0) {
-                const jeepFrontX = player.x + player.width / 2 + 55;
-                const jeepTopY = GROUND_Y - 74; // 吉普车顶部前缘
-                projectiles.push(new JeepBullet(jeepFrontX, GROUND_Y - 10));
-                projectiles.push(new JeepMissile(jeepFrontX, jeepTopY));
-                playJumpSound();
+                if (player.jeepAmmo > 0) {
+                    const jeepFrontX = player.x + player.width / 2 + 55;
+                    const jeepTopY = GROUND_Y - 74;
+                    const hasFlyingMonster = monsters.some(m => !m.isKnocked && m.type === 'flying');
+                    const hasGroundMonster = monsters.some(m => !m.isKnocked && m.type !== 'flying');
+                    if (hasFlyingMonster && !hasGroundMonster) {
+                        projectiles.push(new JeepMissile(jeepFrontX, jeepTopY));
+                    } else if (!hasFlyingMonster && hasGroundMonster) {
+                        projectiles.push(new JeepBullet(jeepFrontX, GROUND_Y - 10));
+                    } else if (hasFlyingMonster && hasGroundMonster) {
+                        // 都有时按奇偶交替
+                        if (player.jeepAmmo % 2 === 0) {
+                            projectiles.push(new JeepMissile(jeepFrontX, jeepTopY));
+                        } else {
+                            projectiles.push(new JeepBullet(jeepFrontX, GROUND_Y - 10));
+                        }
+                    } else {
+                        // 都没有时默认子弹
+                        projectiles.push(new JeepBullet(jeepFrontX, GROUND_Y - 10));
+                    }
+                    player.jeepAmmo--;
+                    playJumpSound();
+                }
                 return;
             }
 
@@ -1457,14 +1508,18 @@
             if (player.shieldTimer > 0) player.shieldTimer--;
 
             if (player.jeepTimer > 0) {
-                player.jeepTimer--;
-                // 吉普车状态下保持在地面，无敌
+                // 吉普车状态下保持在地面，无敌，弹药耗尽后下车
+                if (player.jeepAmmo <= 0) {
+                    player.jeepTimer = 0;
+                } else {
+                    player.invincibleTimer = 2; // 持续无敌
+                }
                 const groundLevel = GROUND_Y - PLAYER_HEIGHT + GROUND_Y_OFFSET;
                 player.y = groundLevel;
                 player.vy = 0;
                 player.isJumping = false;
                 player.flyTimer = 0;
-                return;
+                if (player.jeepTimer > 0) return;
             }
 
             // 下车后开始暂存的足球
@@ -1705,6 +1760,7 @@
                 const shieldX = cx + handX + 6;
                 const shieldY = cy + rightHandY;
                 ctx.translate(shieldX, shieldY);
+                ctx.scale(0.9, 0.9);
                 ctx.rotate(Math.sin(frameCount * 0.2) * 0.05);
 
                 ctx.fillStyle = '#3498db';
@@ -2327,8 +2383,9 @@
             } else if (item.type === 'stone') {
                 projectiles.push(new StoneProjectile(player.x + player.width, player.y + player.height / 2));
             } else if (item.type === 'jeep') {
-                player.jeepTimer = JEEP_DURATION;
-                player.invincibleTimer = Math.max(player.invincibleTimer, JEEP_DURATION);
+                player.jeepTimer = 1; // 标记处于吉普车状态
+                player.jeepAmmo = JEEP_AMMO;
+                player.invincibleTimer = 2; // 由 updatePlayer 每帧续期
                 player.flyTimer = 0;
             } else if (item.type === 'football') {
                 if (player.jeepTimer > 0) {
@@ -2361,8 +2418,7 @@
                 powerupDisplay.innerHTML += `<div class="powerup-tag shield">🛡️ 盾牌 ${seconds}s</div>`;
             }
             if (player.jeepTimer > 0) {
-                const seconds = Math.ceil(player.jeepTimer / 60);
-                powerupDisplay.innerHTML += `<div class="powerup-tag" style="color:#2ecc71">🚙 吉普车 ${seconds}s</div>`;
+                powerupDisplay.innerHTML += `<div class="powerup-tag" style="color:#2ecc71">🚙 吉普车 ${player.jeepAmmo}发</div>`;
             }
             if (player.footballTimer > 0) {
                 const seconds = Math.ceil(player.footballTimer / 60);
@@ -2427,6 +2483,7 @@
 
             // 石块/吉普车子弹/导弹/足球踢出 击飞怪兽
             for (const projectile of projectiles) {
+                if (projectile.hit) continue;
                 for (const monster of monsters) {
                     if (monster.isKnocked) continue;
                     const typeOk = projectile instanceof StoneProjectile ||
@@ -2439,6 +2496,8 @@
                     if (projectile instanceof JeepMissile && monster.type !== 'flying') continue;
                     if (rectsOverlap(projectile.getHitbox(), monster.getHitbox())) {
                         knockMonster(monster, 1);
+                        projectile.hit = true;
+                        break;
                     }
                 }
             }
@@ -2465,7 +2524,7 @@
         function cleanupObjects() {
             monsters = monsters.filter(m => m.x + m.width > -100 && m.y < GAME_HEIGHT + 100);
             items = items.filter(i => i.x + i.width > -50 && !i.collected);
-            projectiles = projectiles.filter(p => p.x < GAME_WIDTH + 100);
+            projectiles = projectiles.filter(p => !p.hit && p.x < GAME_WIDTH + 100 && p.x + p.width > -100);
 
             // 性能保护：限制同屏最大数量，防止老设备卡顿
             const MAX_MONSTERS = 8;
@@ -2604,6 +2663,7 @@
             player.flyTimer = 0;
             player.shieldTimer = 0;
             player.jeepTimer = 0;
+            player.jeepAmmo = 0;
             player.footballTimer = 0;
             player.footballKicked = false;
             player.footballPending = false;
