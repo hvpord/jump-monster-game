@@ -307,7 +307,7 @@
                 点击空格或者屏幕躲避怪兽
             </div>
            <button id="startBtn">开始游戏</button>
-           <div class="version">v1.4.5</div>
+           <div class="version">v1.4.6</div>
         </div>
 
         <!-- 结束界面 -->
@@ -1627,6 +1627,25 @@
                     ctx.clip();
                     ctx.drawImage(playerAvatar, driverX - headR, driverY - headR, headR * 2, headR * 2);
                     ctx.restore();
+
+                    // 车上装载的足球：显示在头像左侧
+                    if (player.footballPending) {
+                        const ballSize = 22;
+                        const ballX = driverX - headR - ballSize - 4;
+                        const ballY = driverY - ballSize / 2;
+                        ctx.save();
+                        ctx.translate(ballX + ballSize / 2, ballY + ballSize / 2);
+                        ctx.rotate(frameCount * 0.15);
+                        if (footballImg.complete && footballImg.naturalWidth > 0) {
+                            ctx.drawImage(footballImg, -ballSize / 2, -ballSize / 2, ballSize, ballSize);
+                        } else {
+                            ctx.fillStyle = '#fff';
+                            ctx.beginPath();
+                            ctx.arc(0, 0, ballSize / 2, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                        ctx.restore();
+                    }
                 }
                 ctx.restore();
                 return;
@@ -2399,8 +2418,13 @@
             } else if (item.type === 'stone') {
                 projectiles.push(new StoneProjectile(player.x + player.width, player.y + player.height / 2));
             } else if (item.type === 'jeep') {
-                player.jeepTimer = 1; // 标记处于吉普车状态
-                player.jeepAmmo = JEEP_AMMO;
+                if (player.jeepTimer > 0) {
+                    // 已在车上，再吃到车补充 10 发弹药
+                    player.jeepAmmo += 10;
+                } else {
+                    player.jeepTimer = 1; // 标记处于吉普车状态
+                    player.jeepAmmo = JEEP_AMMO;
+                }
                 player.invincibleTimer = 2; // 由 updatePlayer 每帧续期
                 player.flyTimer = 0;
             } else if (item.type === 'football') {
