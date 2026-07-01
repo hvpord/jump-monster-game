@@ -466,6 +466,7 @@
             jeepTimer: 0,
             footballTimer: 0,
             footballKicked: false,
+            footballPending: false,
             footballX: 0,
             footballY: 0,
             footballVX: 0,
@@ -1182,23 +1183,45 @@
             }
         }
 
-        // ===== 吉普车导弹（打飞行怪兽） =====
+        // ===== 吉普车导弹（打飞行怪兽，带轻微追踪） =====
         class JeepMissile {
             constructor(x, y) {
                 this.x = x;
                 this.y = y;
                 this.width = 22;
-                this.height = 10;
+                this.height = 14;
                 this.vx = 10;
-                this.vy = -0.5;
+                this.vy = -3;        // 更陡的向上斜率
                 this.trail = [];
             }
 
             update() {
+                // 轻微追踪最近的飞行怪兽
+                let target = null;
+                let minDist = Infinity;
+                for (const m of monsters) {
+                    if (m.isKnocked || m.type !== 'flying') continue;
+                    const d = m.x - this.x;
+                    if (d > -50 && d < minDist) {
+                        minDist = d;
+                        target = m;
+                    }
+                }
+                if (target) {
+                    const targetY = target.y + target.height / 2 - this.height / 2;
+                    const dy = targetY - this.y;
+                    if (dy < -4) this.vy -= 0.25;
+                    else if (dy > 4) this.vy += 0.25;
+                    this.vy = Math.max(this.vy, -5);
+                    this.vy = Math.min(this.vy, 2);
+                } else if (this.vy > -3) {
+                    this.vy -= 0.08;
+                }
+
                 this.x += this.vx;
                 this.y += this.vy;
                 this.trail.push({ x: this.x, y: this.y });
-                if (this.trail.length > 8) this.trail.shift();
+                if (this.trail.length > 10) this.trail.shift();
             }
 
             draw(ctx) {
@@ -1377,8 +1400,9 @@
             // 吉普车状态下按空格发射子弹+导弹
             if (player.jeepTimer > 0) {
                 const jeepFrontX = player.x + player.width / 2 + 55;
+                const jeepTopY = GROUND_Y - 74; // 吉普车顶部前缘
                 projectiles.push(new JeepBullet(jeepFrontX, GROUND_Y - 10));
-                projectiles.push(new JeepMissile(jeepFrontX, GROUND_Y - PLAYER_HEIGHT - FLY_HEIGHT_OFFSET + 10));
+                projectiles.push(new JeepMissile(jeepFrontX, jeepTopY));
                 playJumpSound();
                 return;
             }
@@ -1441,6 +1465,15 @@
                 player.isJumping = false;
                 player.flyTimer = 0;
                 return;
+            }
+
+            // 下车后开始暂存的足球
+            if (player.footballPending) {
+                player.footballPending = false;
+                player.footballTimer = FOOTBALL_DRIBBLE_DURATION;
+                player.footballKicked = false;
+                player.footballX = player.x + player.width + 10;
+                player.footballY = GROUND_Y - 18;
             }
 
             if (player.footballTimer > 0) {
@@ -2269,13 +2302,26 @@
             playKnockSound();
         }
 
+        function dropFootball() {
+            // 足球掉落/丢失：停止倒计时，留在原地向后滚动消失
+            player.footballTimer = 0;
+            player.footballKicked = false;
+        }
+
         // ===== 处理道具拾取 =====
         function collectItem(item) {
             if (item.type === 'hammer') {
                 player.invincibleTimer = INVINCIBLE_DURATION;
             } else if (item.type === 'wings') {
-                player.flyTimer = FLY_DURATION;
-                player.vy = 0;
+                // 带球时吃翅膀，足球从后方滚走丢失
+                if (player.footballTimer > 0 && !player.footballKicked) {
+                    dropFootball();
+                }
+                // 吉普车上吃翅膀无效
+                if (player.jeepTimer <= 0) {
+                    player.flyTimer = FLY_DURATION;
+                    player.vy = 0;
+                }
             } else if (item.type === 'shield') {
                 player.shieldTimer = SHIELD_DURATION;
             } else if (item.type === 'stone') {
@@ -2285,10 +2331,15 @@
                 player.invincibleTimer = Math.max(player.invincibleTimer, JEEP_DURATION);
                 player.flyTimer = 0;
             } else if (item.type === 'football') {
-                player.footballTimer = FOOTBALL_DRIBBLE_DURATION;
-                player.footballKicked = false;
-                player.footballX = player.x + player.width + 10;
-                player.footballY = GROUND_Y - 18;
+                if (player.jeepTimer > 0) {
+                    // 在车上吃足球：暂存，下车后触发
+                    player.footballPending = true;
+                } else {
+                    player.footballTimer = FOOTBALL_DRIBBLE_DURATION;
+                    player.footballKicked = false;
+                    player.footballX = player.x + player.width + 10;
+                    player.footballY = GROUND_Y - 18;
+                }
             }
             item.collected = true;
             playItemSound();
@@ -2555,6 +2606,7 @@
             player.jeepTimer = 0;
             player.footballTimer = 0;
             player.footballKicked = false;
+            player.footballPending = false;
             player.isDead = false;
             player.deathTimer = 0;
             player.deathRotation = 0;
