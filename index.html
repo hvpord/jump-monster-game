@@ -208,6 +208,18 @@
             text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
         }
 
+        /* ===== 速度显示 ===== */
+        #speedDisplay {
+            position: absolute;
+            top: clamp(36px, 6vh, 48px);
+            right: clamp(10px, 2.5vw, 20px);
+            font-size: clamp(12px, 3vw, 18px);
+            color: #fff;
+            font-weight: bold;
+            z-index: 5;
+            text-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
+        }
+
         /* ===== 道具状态显示 ===== */
         #powerupDisplay {
             position: absolute;
@@ -289,6 +301,7 @@
 
         <!-- 分数显示 -->
         <div id="scoreDisplay">得分: 0</div>
+        <div id="speedDisplay">速度: 1.0x</div>
 
         <!-- 道具状态显示 -->
        <div id="powerupDisplay"></div>
@@ -307,7 +320,7 @@
                 点击空格或者屏幕躲避怪兽
             </div>
            <button id="startBtn">开始游戏</button>
-           <div class="version">v1.4.7</div>
+           <div class="version">v1.4.8</div>
         </div>
 
         <!-- 结束界面 -->
@@ -330,6 +343,7 @@
         const startScreen = document.getElementById('startScreen');
         const gameOverScreen = document.getElementById('gameOverScreen');
         const scoreDisplay = document.getElementById('scoreDisplay');
+        const speedDisplay = document.getElementById('speedDisplay');
         const powerupDisplay = document.getElementById('powerupDisplay');
         const finalScoreEl = document.getElementById('finalScore');
         const highScoreEl = document.getElementById('highScore');
@@ -1436,6 +1450,13 @@
             return MONSTER_SPEED_BASE * Math.pow(1.05, level);
         }
 
+        // ===== 更新得分与速度显示 =====
+        function updateScoreDisplay() {
+            scoreDisplay.textContent = `得分: ${score}`;
+            const speedMultiplier = getCurrentMonsterSpeed() / MONSTER_SPEED_BASE;
+            speedDisplay.textContent = `速度: ${speedMultiplier.toFixed(1)}x`;
+        }
+
         // ===== 获取当前怪兽生成间隔倍数（线性密度：每10分密度+10%，间隔缩短） =====
         function getSpawnIntervalMultiplier() {
             const level = Math.floor(score / 10);
@@ -2381,7 +2402,7 @@
                 monster.scored = true;
                 passedMonsters++;
                 score = passedMonsters;
-                scoreDisplay.textContent = `得分: ${score}`;
+                updateScoreDisplay();
             }
             monster.isKnocked = true;
             monster.vx = 7 * direction;
@@ -2557,7 +2578,7 @@
                     monster.scored = true;
                     passedMonsters++;
                     score = passedMonsters;
-                    scoreDisplay.textContent = `得分: ${score}`;
+                    updateScoreDisplay();
                 }
             }
         }
@@ -2717,6 +2738,7 @@
             initAudio();
 
             scoreDisplay.textContent = '得分: 0';
+            speedDisplay.textContent = '速度: 1.0x';
             powerupDisplay.innerHTML = '';
             startScreen.classList.add('hidden');
             gameOverScreen.style.display = 'none';
