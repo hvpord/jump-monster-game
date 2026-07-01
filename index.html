@@ -1157,11 +1157,20 @@
                 this.width = 16;
                 this.height = 6;
                 this.vx = 12;
+                this.vy = 0;
                 this.hit = false;
+                this.dying = false;
             }
 
             update() {
                 if (this.hit) return;
+                if (this.dying) {
+                    this.x += this.vx;
+                    this.y += this.vy;
+                    this.vy += GRAVITY;
+                    if (this.y > GROUND_Y + 20) this.hit = true; // 掉出屏幕下方
+                    return;
+                }
                 this.x += this.vx;
             }
 
@@ -1185,6 +1194,13 @@
                     width: this.width,
                     height: this.height
                 };
+            }
+
+            onHit() {
+                // 被怪兽阻挡后反弹下落，掉出屏幕
+                this.dying = true;
+                this.vx = -2;
+                this.vy = -5;
             }
         }
 
@@ -2496,7 +2512,13 @@
                     if (projectile instanceof JeepMissile && monster.type !== 'flying') continue;
                     if (rectsOverlap(projectile.getHitbox(), monster.getHitbox())) {
                         knockMonster(monster, 1);
-                        projectile.hit = true;
+                        if (projectile instanceof FootballKick) {
+                            // 足球踢出后贯穿怪兽，不消失
+                        } else if (projectile instanceof JeepBullet) {
+                            projectile.onHit();
+                        } else {
+                            projectile.hit = true;
+                        }
                         break;
                     }
                 }
