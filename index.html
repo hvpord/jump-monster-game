@@ -931,8 +931,16 @@
             constructor(type, x) {
                 this.type = type;
                 this.x = x;
-                this.width = 32;
-                this.height = 32;
+                if (type === 'jeep') {
+                    this.width = 72;
+                    this.height = 52;
+                } else if (type === 'football') {
+                    this.width = 56;
+                    this.height = 56;
+                } else {
+                    this.width = 32;
+                    this.height = 32;
+                }
                 this.y = GROUND_Y - this.height + GROUND_Y_OFFSET;
                 this.collected = false;
                 this.bobOffset = Math.random() * Math.PI * 2;
@@ -1049,16 +1057,17 @@
             drawJeep(cx, cy) {
                 ctx.save();
                 ctx.translate(cx, cy);
+                const w = 72, h = 52;
                 if (jeepImg.complete && jeepImg.naturalWidth > 0) {
-                    ctx.drawImage(jeepImg, -22, -16, 44, 32);
+                    ctx.drawImage(jeepImg, -w / 2, -h / 2, w, h);
                 } else {
                     ctx.fillStyle = '#2ecc71';
                     ctx.beginPath();
-                    ctx.roundRect(-18, -10, 36, 18, 3);
+                    ctx.roundRect(-w / 2, -h / 2, w, h, 6);
                     ctx.fill();
                     ctx.fillStyle = '#27ae60';
                     ctx.beginPath();
-                    ctx.roundRect(-8, -18, 14, 10, 2);
+                    ctx.roundRect(-w / 2 + 8, -h / 2 - 10, w - 16, 12, 3);
                     ctx.fill();
                 }
                 ctx.restore();
@@ -1067,19 +1076,19 @@
             drawFootball(cx, cy) {
                 ctx.save();
                 ctx.translate(cx, cy);
+                const size = 56;
                 if (footballImg.complete && footballImg.naturalWidth > 0) {
-                    const size = 28;
                     ctx.drawImage(footballImg, -size / 2, -size / 2, size, size);
                 } else {
                     ctx.fillStyle = '#fff';
                     ctx.beginPath();
-                    ctx.arc(0, 0, 14, 0, Math.PI * 2);
+                    ctx.arc(0, 0, size / 2, 0, Math.PI * 2);
                     ctx.fill();
                     ctx.strokeStyle = '#000';
                     ctx.lineWidth = 2;
                     ctx.beginPath();
-                    ctx.moveTo(-8, -4); ctx.lineTo(8, 4);
-                    ctx.moveTo(-8, 4); ctx.lineTo(8, -4);
+                    ctx.moveTo(-14, -8); ctx.lineTo(14, 8);
+                    ctx.moveTo(-14, 8); ctx.lineTo(14, -8);
                     ctx.stroke();
                 }
                 ctx.restore();
@@ -1229,18 +1238,18 @@
             constructor(x, y) {
                 this.x = x;
                 this.y = y;
-                this.width = 32;
-                this.height = 32;
-                this.vx = 11;
-                this.vy = -2;
+                this.width = 56;
+                this.height = 56;
+                this.vx = 6;       // 减慢速度，延长在屏时间
+                this.vy = -2.5;
                 this.rotation = 0;
             }
 
             update() {
                 this.x += this.vx;
                 this.y += this.vy;
-                this.vy += GRAVITY * 0.3;
-                this.rotation += 0.25;
+                this.vy += GRAVITY * 0.25;
+                this.rotation += 0.18;
                 const groundLevel = GROUND_Y - this.height / 2;
                 if (this.y > groundLevel) {
                     this.y = groundLevel;
@@ -1262,8 +1271,8 @@
                     ctx.strokeStyle = '#000';
                     ctx.lineWidth = 2;
                     ctx.beginPath();
-                    ctx.moveTo(-8, -4); ctx.lineTo(8, 4);
-                    ctx.moveTo(-8, 4); ctx.lineTo(8, -4);
+                    ctx.moveTo(-14, -8); ctx.lineTo(14, 8);
+                    ctx.moveTo(-14, 8); ctx.lineTo(14, -8);
                     ctx.stroke();
                 }
                 ctx.restore();
@@ -1271,10 +1280,10 @@
 
             getHitbox() {
                 return {
-                    x: this.x + 4,
-                    y: this.y + 4,
-                    width: this.width - 8,
-                    height: this.height - 8
+                    x: this.x + 8,
+                    y: this.y + 8,
+                    width: this.width - 16,
+                    height: this.height - 16
                 };
             }
         }
@@ -1417,12 +1426,13 @@
                 if (frameCount % 12 === 0) {
                     const hasGroundMonster = monsters.some(m => !m.isKnocked && m.type !== 'flying');
                     const hasFlyingMonster = monsters.some(m => !m.isKnocked && m.type === 'flying');
+                    const jeepFrontX = player.x + player.width / 2 + 55; // 吉普车右前方
                     if (hasFlyingMonster && frameCount % 24 === 0) {
-                        projectiles.push(new JeepMissile(player.x + player.width, player.y + 10));
+                        projectiles.push(new JeepMissile(jeepFrontX, GROUND_Y - 58));
                     } else if (hasGroundMonster) {
-                        projectiles.push(new JeepBullet(player.x + player.width, player.y + player.height - 12));
+                        projectiles.push(new JeepBullet(jeepFrontX, GROUND_Y - 10));
                     } else if (hasFlyingMonster) {
-                        projectiles.push(new JeepMissile(player.x + player.width, player.y + 10));
+                        projectiles.push(new JeepMissile(jeepFrontX, GROUND_Y - 58));
                     }
                 }
                 return;
@@ -1431,8 +1441,9 @@
             if (player.footballTimer > 0) {
                 player.footballTimer--;
                 // 足球跟随玩家脚底滚动
-                player.footballX = player.x + player.width + 6;
-                player.footballY = GROUND_Y - 16;
+                const ballSize = 56;
+                player.footballX = player.x + player.width + 4;
+                player.footballY = GROUND_Y - ballSize + 6;
                 if (player.footballTimer <= 0) {
                     // 5秒后踢出
                     player.footballKicked = true;
@@ -1468,40 +1479,41 @@
             // 吉普车状态：直接绘制吉普车和驾驶员
             if (player.jeepTimer > 0) {
                 ctx.save();
-                ctx.translate(cx, cy + 10);
-                const jeepW = 90;
-                const jeepH = 44;
+                const jeepW = 110;
+                const jeepH = 78;
+                const jeepX = cx - jeepW / 2;
+                const jeepY = GROUND_Y - jeepH + 4;
                 const bounce = Math.sin(frameCount * 0.3) * 2;
-                // 车身
-                ctx.fillStyle = '#2ecc71';
-                ctx.beginPath();
-                ctx.roundRect(-jeepW / 2, -jeepH / 2 + bounce, jeepW, jeepH, 6);
-                ctx.fill();
-                // 车顶
-                ctx.fillStyle = '#27ae60';
-                ctx.beginPath();
-                ctx.roundRect(-jeepW / 2 + 8, -jeepH / 2 - 14 + bounce, jeepW - 16, 16, 3);
-                ctx.fill();
-                // 车轮
-                ctx.fillStyle = '#1a252f';
-                [-jeepW / 2 + 14, jeepW / 2 - 14].forEach(wx => {
+                // 车身贴图
+                if (jeepImg.complete && jeepImg.naturalWidth > 0) {
+                    ctx.drawImage(jeepImg, jeepX, jeepY + bounce, jeepW, jeepH);
+                } else {
+                    ctx.fillStyle = '#2ecc71';
                     ctx.beginPath();
-                    ctx.arc(wx, jeepH / 2 + bounce, 10, 0, Math.PI * 2);
+                    ctx.roundRect(jeepX, jeepY + bounce, jeepW, jeepH, 8);
                     ctx.fill();
-                });
-                // 车灯
-                ctx.fillStyle = 'rgba(255, 255, 200, 0.9)';
-                ctx.beginPath();
-                ctx.arc(jeepW / 2 - 4, -4 + bounce, 5, 0, Math.PI * 2);
-                ctx.fill();
+                    ctx.fillStyle = '#27ae60';
+                    ctx.beginPath();
+                    ctx.roundRect(jeepX + 12, jeepY - 14 + bounce, jeepW - 24, 18, 4);
+                    ctx.fill();
+                    // 车轮
+                    ctx.fillStyle = '#1a252f';
+                    [jeepX + 22, jeepX + jeepW - 22].forEach(wx => {
+                        ctx.beginPath();
+                        ctx.arc(wx, jeepY + jeepH - 8 + bounce, 12, 0, Math.PI * 2);
+                        ctx.fill();
+                    });
+                }
                 // 驾驶员头像
                 if (avatarLoaded(playerAvatar)) {
-                    const headR = 16;
+                    const headR = 18;
+                    const driverX = jeepX + jeepW * 0.42;
+                    const driverY = jeepY + jeepH * 0.32 + bounce;
                     ctx.save();
                     ctx.beginPath();
-                    ctx.arc(-jeepW / 2 + 28, -jeepH / 2 - 8 + bounce, headR, 0, Math.PI * 2);
+                    ctx.arc(driverX, driverY, headR, 0, Math.PI * 2);
                     ctx.clip();
-                    ctx.drawImage(playerAvatar, -jeepW / 2 + 28 - headR, -jeepH / 2 - 8 - headR + bounce, headR * 2, headR * 2);
+                    ctx.drawImage(playerAvatar, driverX - headR, driverY - headR, headR * 2, headR * 2);
                     ctx.restore();
                 }
                 ctx.restore();
@@ -1597,20 +1609,21 @@
             // 足球带球：在脚边绘制滚动的足球
             if (player.footballTimer > 0 && !player.footballKicked) {
                 ctx.save();
-                ctx.translate(player.footballX + 16, player.footballY + 16);
+                const ballSize = 56;
+                ctx.translate(player.footballX + ballSize / 2, player.footballY + ballSize / 2);
                 ctx.rotate(frameCount * 0.25);
                 if (footballImg.complete && footballImg.naturalWidth > 0) {
-                    ctx.drawImage(footballImg, -16, -16, 32, 32);
+                    ctx.drawImage(footballImg, -ballSize / 2, -ballSize / 2, ballSize, ballSize);
                 } else {
                     ctx.fillStyle = '#fff';
                     ctx.beginPath();
-                    ctx.arc(0, 0, 14, 0, Math.PI * 2);
+                    ctx.arc(0, 0, ballSize / 2, 0, Math.PI * 2);
                     ctx.fill();
                     ctx.strokeStyle = '#000';
                     ctx.lineWidth = 2;
                     ctx.beginPath();
-                    ctx.moveTo(-8, -4); ctx.lineTo(8, 4);
-                    ctx.moveTo(-8, 4); ctx.lineTo(8, -4);
+                    ctx.moveTo(-14, -8); ctx.lineTo(14, 8);
+                    ctx.moveTo(-14, 8); ctx.lineTo(14, -8);
                     ctx.stroke();
                 }
                 ctx.restore();
@@ -2317,10 +2330,10 @@
             // 足球带球期间：足球本身碰撞怪兽
             if (player.footballTimer > 0 && !player.footballKicked) {
                 const ballHitbox = {
-                    x: player.footballX + 4,
-                    y: player.footballY + 4,
-                    width: 24,
-                    height: 24
+                    x: player.footballX + 8,
+                    y: player.footballY + 8,
+                    width: 40,
+                    height: 40
                 };
                 for (const monster of monsters) {
                     if (monster.isKnocked) continue;
