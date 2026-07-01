@@ -400,7 +400,7 @@
         const FLY_DURATION = 600;
         const SHIELD_DURATION = 1200;
         const JEEP_DURATION = 900;          // 15秒
-        const FOOTBALL_DRIBBLE_DURATION = 300; // 5秒
+        const FOOTBALL_DRIBBLE_DURATION = 360; // 6秒
         const STONE_SPEED = 9;
         const DEATH_ANIMATION_DURATION = 80;
 
@@ -1374,6 +1374,24 @@
         function jump() {
             if (gameState !== 'playing' || player.isDead) return;
 
+            // 吉普车状态下按空格发射子弹+导弹
+            if (player.jeepTimer > 0) {
+                const jeepFrontX = player.x + player.width / 2 + 55;
+                projectiles.push(new JeepBullet(jeepFrontX, GROUND_Y - 10));
+                projectiles.push(new JeepMissile(jeepFrontX, GROUND_Y - PLAYER_HEIGHT - FLY_HEIGHT_OFFSET + 10));
+                playJumpSound();
+                return;
+            }
+
+            // 足球带球期间按空格从地面踢出
+            if (player.footballTimer > 0 && !player.footballKicked) {
+                const ballSize = 56;
+                player.footballKicked = true;
+                projectiles.push(new FootballKick(player.footballX, GROUND_Y - ballSize / 2));
+                playJumpSound();
+                return;
+            }
+
             if (player.flyTimer > 0) {
                 // 飞行中再次按键可提前降落
                 player.flyTimer = 0;
@@ -1416,25 +1434,12 @@
 
             if (player.jeepTimer > 0) {
                 player.jeepTimer--;
-                // 吉普车状态下保持在地面
+                // 吉普车状态下保持在地面，无敌
                 const groundLevel = GROUND_Y - PLAYER_HEIGHT + GROUND_Y_OFFSET;
                 player.y = groundLevel;
                 player.vy = 0;
                 player.isJumping = false;
                 player.flyTimer = 0;
-                // 自动发射：地面怪兽多时发子弹，飞行怪兽多时发导弹
-                if (frameCount % 12 === 0) {
-                    const hasGroundMonster = monsters.some(m => !m.isKnocked && m.type !== 'flying');
-                    const hasFlyingMonster = monsters.some(m => !m.isKnocked && m.type === 'flying');
-                    const jeepFrontX = player.x + player.width / 2 + 55; // 吉普车右前方
-                    if (hasFlyingMonster && frameCount % 24 === 0) {
-                        projectiles.push(new JeepMissile(jeepFrontX, GROUND_Y - 58));
-                    } else if (hasGroundMonster) {
-                        projectiles.push(new JeepBullet(jeepFrontX, GROUND_Y - 10));
-                    } else if (hasFlyingMonster) {
-                        projectiles.push(new JeepMissile(jeepFrontX, GROUND_Y - 58));
-                    }
-                }
                 return;
             }
 
@@ -1444,10 +1449,13 @@
                 const ballSize = 56;
                 player.footballX = player.x + player.width + 4;
                 player.footballY = GROUND_Y - ballSize + 6;
-                if (player.footballTimer <= 0) {
-                    // 5秒后踢出
-                    player.footballKicked = true;
-                    projectiles.push(new FootballKick(player.x + player.width, player.y + player.height / 2));
+            } else if (!player.footballKicked) {
+                // 时间到未踢出：球停在原地并向后滚动消失
+                const ballSize = 56;
+                player.footballX -= getCurrentMonsterSpeed();
+                player.footballY = GROUND_Y - ballSize + 6;
+                if (player.footballX + ballSize < 0) {
+                    player.footballKicked = true; // 状态清理
                 }
             }
 
@@ -1606,8 +1614,8 @@
 
             ctx.restore();
 
-            // 足球带球：在脚边绘制滚动的足球
-            if (player.footballTimer > 0 && !player.footballKicked) {
+            // 足球带球/未踢出滞留：在脚边或原地绘制滚动的足球
+            if (!player.footballKicked && player.footballX + 60 > 0) {
                 ctx.save();
                 const ballSize = 56;
                 ctx.translate(player.footballX + ballSize / 2, player.footballY + ballSize / 2);
@@ -2327,8 +2335,8 @@
                 }
             }
 
-            // 足球带球期间：足球本身碰撞怪兽
-            if (player.footballTimer > 0 && !player.footballKicked) {
+            // 足球带球/滞留期间：足球本身碰撞怪兽
+            if (!player.footballKicked && player.footballX + 60 > 0) {
                 const ballHitbox = {
                     x: player.footballX + 8,
                     y: player.footballY + 8,
