@@ -320,7 +320,7 @@
                 点击空格或者屏幕躲避怪兽
             </div>
            <button id="startBtn">开始游戏</button>
-           <div class="version">v1.4.9</div>
+           <div class="version">v1.5.0</div>
         </div>
 
         <!-- 结束界面 -->
@@ -1468,28 +1468,11 @@
         function jump() {
             if (gameState !== 'playing' || player.isDead) return;
 
-            // 吉普车状态下按空格发射一发子弹或导弹
+            // 吉普车状态下按空格发射一发对地子弹
             if (player.jeepTimer > 0) {
                 if (player.jeepAmmo > 0) {
                     const jeepFrontX = player.x + player.width / 2 + 55;
-                    const jeepTopY = GROUND_Y - 74;
-                    const hasFlyingMonster = monsters.some(m => !m.isKnocked && m.type === 'flying');
-                    const hasGroundMonster = monsters.some(m => !m.isKnocked && m.type !== 'flying');
-                    if (hasFlyingMonster && !hasGroundMonster) {
-                        projectiles.push(new JeepMissile(jeepFrontX, jeepTopY));
-                    } else if (!hasFlyingMonster && hasGroundMonster) {
-                        projectiles.push(new JeepBullet(jeepFrontX, GROUND_Y - 10));
-                    } else if (hasFlyingMonster && hasGroundMonster) {
-                        // 都有时按奇偶交替
-                        if (player.jeepAmmo % 2 === 0) {
-                            projectiles.push(new JeepMissile(jeepFrontX, jeepTopY));
-                        } else {
-                            projectiles.push(new JeepBullet(jeepFrontX, GROUND_Y - 10));
-                        }
-                    } else {
-                        // 都没有时默认子弹
-                        projectiles.push(new JeepBullet(jeepFrontX, GROUND_Y - 10));
-                    }
+                    projectiles.push(new JeepBullet(jeepFrontX, GROUND_Y - 10));
                     player.jeepAmmo--;
                     playJumpSound();
                 }
