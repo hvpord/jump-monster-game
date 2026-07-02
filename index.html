@@ -320,7 +320,7 @@
                 点击空格或者屏幕躲避怪兽
             </div>
            <button id="startBtn">开始游戏</button>
-           <div class="version">v1.5.1</div>
+           <div class="version">v1.5.2</div>
         </div>
 
         <!-- 结束界面 -->
@@ -2608,12 +2608,16 @@
                         knockMonster(monster, 1);
                         if (projectile instanceof FootballKick) {
                             // 足球踢出后贯穿怪兽，不消失
+                        } else if (projectile instanceof StoneProjectile) {
+                            // 石块贯穿怪兽，不消失，继续检测下一个怪兽
                         } else if (projectile instanceof JeepBullet) {
                             projectile.onHit();
                         } else {
                             projectile.hit = true;
                         }
-                        break;
+                        if (!(projectile instanceof StoneProjectile)) {
+                            break;
+                        }
                     }
                 }
             }
