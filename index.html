@@ -320,7 +320,7 @@
                 点击空格或者屏幕躲避怪兽
             </div>
            <button id="startBtn">开始游戏</button>
-           <div class="version">v1.5.2</div>
+           <div class="version">v1.5.3</div>
         </div>
 
         <!-- 结束界面 -->
@@ -1486,6 +1486,7 @@
             if (player.footballTimer > 0 && !player.footballKicked) {
                 const ballSize = 56;
                 player.footballKicked = true;
+                player.footballTimer = 0; // 踢出后计时立即结束
                 projectiles.push(new FootballKick(player.footballX, GROUND_Y - ballSize / 2));
                 playJumpSound();
                 return;
@@ -1549,10 +1550,12 @@
                 if (player.jeepTimer > 0) return;
             }
 
-            // 下车后开始暂存的足球
+            // 下车后开始暂存的足球（保留剩余时间）
             if (player.footballPending) {
                 player.footballPending = false;
-                player.footballTimer = FOOTBALL_DRIBBLE_DURATION;
+                if (player.footballTimer <= 0) {
+                    player.footballTimer = FOOTBALL_DRIBBLE_DURATION;
+                }
                 player.footballKicked = false;
                 player.footballX = player.x + player.width + 10;
                 player.footballY = GROUND_Y - 18;
@@ -2467,6 +2470,10 @@
                 } else {
                     player.jeepTimer = 1; // 标记处于吉普车状态
                     player.jeepAmmo = JEEP_AMMO;
+                }
+                // 带球时上车：暂停足球计时，改为车载状态
+                if (player.footballTimer > 0 && !player.footballKicked) {
+                    player.footballPending = true;
                 }
                 player.flyTimer = 0;
             } else if (item.type === 'football') {
