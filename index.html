@@ -320,7 +320,7 @@
                 点击空格或者屏幕躲避怪兽
             </div>
            <button id="startBtn">开始游戏</button>
-           <div class="version">v1.5.5</div>
+           <div class="version">v1.5.6</div>
         </div>
 
         <!-- 结束界面 -->
@@ -356,15 +356,17 @@
         const jeepImg = new Image();
         const footballImg = new Image();
         const camelImg = new Image();
+        const sheepImg = new Image();
         shitouImg.src = 'shitou.png';
         duoduoImg.src = 'duoduo.png';
         jeepImg.src = 'jeep.png';
         footballImg.src = 'football.png';
         camelImg.src = 'camel.png';
+        sheepImg.src = 'sheep.png';
         let playerAvatar = null;
         let monsterAvatar = null;
         let avatarImagesReady = 0;
-        [shitouImg, duoduoImg, jeepImg, footballImg, camelImg].forEach(img => {
+        [shitouImg, duoduoImg, jeepImg, footballImg, camelImg, sheepImg].forEach(img => {
             img.onload = () => { avatarImagesReady++; };
         });
 
@@ -466,6 +468,8 @@
         let cityLaneOffset = 0;
         let desertCamelX = 0;
         let desertCacti = []; // 沙漠仙人掌数组
+        let grasslandHillOffset = 0;
+        let grasslandSheep = []; // 草原绵羊数组
         let trainX = -300;
 
         // ===== 角色对象 =====
@@ -1943,6 +1947,19 @@
                     });
                 }
             }
+            if (currentScene === 'grassland') {
+                // 随机生成绵羊：3-6 只，随机位置、大小和朝向
+                grasslandSheep = [];
+                const sheepCount = Math.floor(Math.random() * 4) + 3;
+                for (let i = 0; i < sheepCount; i++) {
+                    grasslandSheep.push({
+                        x: Math.random() * GAME_WIDTH,
+                        y: GROUND_Y - Math.random() * 20,
+                        scale: Math.random() * 0.3 + 0.5, // 0.5 - 0.8
+                        facingRight: Math.random() > 0.5
+                    });
+                }
+            }
             if (currentScene === 'railway') {
                 trainX = -400 - Math.random() * 300;
             }
@@ -2008,6 +2025,23 @@
                         }
                     }
                     cityBuildings.push(first);
+                }
+            }
+
+            // 草原山丘和绵羊缓慢向后移动
+            if (currentScene === 'grassland') {
+                const hillSpeed = getCurrentMonsterSpeed() * 0.04;
+                grasslandHillOffset = (grasslandHillOffset + hillSpeed) % GAME_WIDTH;
+                const sheepSpeed = getCurrentMonsterSpeed() * 0.08;
+                grasslandSheep.forEach(s => { s.x -= sheepSpeed; });
+                grasslandSheep = grasslandSheep.filter(s => s.x > -80);
+                while (grasslandSheep.length < 4) {
+                    grasslandSheep.push({
+                        x: GAME_WIDTH + Math.random() * 200,
+                        y: GROUND_Y - Math.random() * 20,
+                        scale: Math.random() * 0.3 + 0.5,
+                        facingRight: Math.random() > 0.5
+                    });
                 }
             }
 
@@ -2119,15 +2153,68 @@
             const grad = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT);
             grad.addColorStop(0, '#87CEEB');
             grad.addColorStop(0.6, '#B0E0E6');
-            grad.addColorStop(1, '#98FB98');
+            grad.addColorStop(1, '#E8F5E9');
             ctx.fillStyle = grad;
             ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
             drawSun(GAME_WIDTH - 80, 60, 28);
-            drawClouds(0.95);
-            drawHills('#7cb342', 30, 0.3, 70);
-            drawHills('#558b2f', 20, 0.5, 40);
+            drawClouds(0.25);
+
+            // 平滑的绿色山丘，缓慢向后移动
+            drawGrasslandHills('#81c784', 35, grasslandHillOffset, GROUND_Y - 20, 0.6);
+            drawGrasslandHills('#66bb6a', 25, grasslandHillOffset, GROUND_Y - 10, 1.0);
+
+            // 绵羊
+            grasslandSheep.forEach(s => drawSheep(s.x, s.y, s.scale, s.facingRight));
+
             drawGround('#4a8f29', '#6bbf4a', 20, 40);
+        }
+
+        function drawGrasslandHills(color, amplitude, offset, yBase, parallax) {
+            ctx.fillStyle = color;
+            const xOffset = offset * parallax;
+            ctx.beginPath();
+            ctx.moveTo(0, GAME_HEIGHT);
+            for (let x = 0; x <= GAME_WIDTH; x += 4) {
+                const wx = x + xOffset;
+                const y = yBase - Math.sin(wx * 0.0035) * amplitude - Math.sin(wx * 0.009 + 1) * amplitude * 0.35;
+                ctx.lineTo(x, y);
+            }
+            ctx.lineTo(GAME_WIDTH, GAME_HEIGHT);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        function drawSheep(x, y, scale = 1, facingRight = true) {
+            ctx.save();
+            ctx.translate(x, y);
+            if (!facingRight) {
+                ctx.scale(-1, 1);
+            }
+            ctx.scale(scale, scale);
+
+            if (sheepImg.complete && sheepImg.naturalWidth > 0) {
+                const w = 60;
+                const h = 45;
+                ctx.drawImage(sheepImg, -w / 2, -h, w, h);
+            } else {
+                // fallback：简单白团绵羊
+                ctx.fillStyle = '#fff';
+                ctx.beginPath();
+                ctx.ellipse(0, -15, 20, 14, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(15, -22, 10, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#333';
+                ctx.beginPath();
+                ctx.arc(18, -24, 2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#000';
+                ctx.fillRect(-8, -2, 4, 8);
+                ctx.fillRect(8, -2, 4, 8);
+            }
+            ctx.restore();
         }
 
         // ===== 城市街道 =====
@@ -2881,6 +2968,8 @@
             cityLaneOffset = 0;
             desertCamelX = 0;
             desertCacti = [];
+            grasslandHillOffset = 0;
+            grasslandSheep = [];
             trainX = -300;
 
             player.y = GROUND_Y - PLAYER_HEIGHT + GROUND_Y_OFFSET;
