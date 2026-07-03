@@ -320,7 +320,7 @@
                 点击空格或者屏幕躲避怪兽
             </div>
            <button id="startBtn">开始游戏</button>
-           <div class="version">v1.5.6</div>
+           <div class="version">v1.5.7</div>
         </div>
 
         <!-- 结束界面 -->
@@ -471,6 +471,7 @@
         let grasslandHillOffset = 0;
         let grasslandSheep = []; // 草原绵羊数组
         let trainX = -300;
+        let railwayMountainOffset = 0;
 
         // ===== 角色对象 =====
         const player = {
@@ -1980,6 +1981,8 @@
                 if (trainX > GAME_WIDTH + 200) {
                     trainX = -400 - Math.random() * 300;
                 }
+                // 远山缓慢向后移动
+                railwayMountainOffset = (railwayMountainOffset + getCurrentMonsterSpeed() * 0.03) % GAME_WIDTH;
             }
 
             // 沙漠骆驼移动
@@ -2419,11 +2422,12 @@
 
             drawSun(GAME_WIDTH - 70, 90, 35, '#ff5722');
 
-            // 远山
-            drawHills('#5d4037', 40, 0.2, 80);
+            // 远山：更大、更平滑、缓慢向后移动
+            drawRailwayMountains('#5d4037', 70, railwayMountainOffset, GROUND_Y - 30);
+            drawRailwayMountains('#4e342e', 45, railwayMountainOffset, GROUND_Y - 10);
 
-            // 火车
-            drawTrain(trainX, GROUND_Y - 110);
+            // 火车（缩小并增加两节车厢）
+            drawTrain(trainX, GROUND_Y - 90);
 
             // 铁轨枕木
             ctx.fillStyle = '#5d4037';
@@ -2445,34 +2449,62 @@
             drawGround('#795548', '#8d6e63', 16, 40);
         }
 
+        function drawRailwayMountains(color, amplitude, offset, yBase) {
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.moveTo(0, GAME_HEIGHT);
+            for (let x = 0; x <= GAME_WIDTH; x += 5) {
+                const wx = x + offset;
+                const y = yBase - Math.sin(wx * 0.002) * amplitude - Math.sin(wx * 0.005 + 2) * amplitude * 0.4;
+                ctx.lineTo(x, y);
+            }
+            ctx.lineTo(GAME_WIDTH, GAME_HEIGHT);
+            ctx.closePath();
+            ctx.fill();
+        }
+
         function drawTrain(x, y) {
             ctx.save();
+            const scale = 0.7;
+            ctx.translate(x, y);
+            ctx.scale(scale, scale);
+
+            // 第一节：火车头
             ctx.fillStyle = '#37474f';
-            // 车厢
-            ctx.fillRect(x, y, 90, 55);
-            ctx.fillRect(x + 95, y + 5, 70, 50);
-            ctx.fillRect(x + 170, y + 5, 70, 50);
+            ctx.fillRect(0, 0, 90, 55);
+            // 烟囱
+            ctx.fillStyle = '#263238';
+            ctx.fillRect(60, -18, 16, 18);
+            // 车厢（共四节）
+            ctx.fillStyle = '#455a64';
+            for (let i = 0; i < 4; i++) {
+                ctx.fillRect(95 + i * 75, 5, 70, 50);
+            }
             // 窗户
             ctx.fillStyle = '#b3e5fc';
-            ctx.fillRect(x + 10, y + 10, 25, 18);
-            ctx.fillRect(x + 45, y + 10, 25, 18);
-            ctx.fillRect(x + 105, y + 15, 20, 15);
-            ctx.fillRect(x + 135, y + 15, 20, 15);
-            ctx.fillRect(x + 180, y + 15, 20, 15);
-            ctx.fillRect(x + 210, y + 15, 20, 15);
+            ctx.fillRect(10, 10, 25, 18);
+            ctx.fillRect(45, 10, 25, 18);
+            for (let i = 0; i < 4; i++) {
+                ctx.fillRect(105 + i * 75, 15, 20, 15);
+                ctx.fillRect(135 + i * 75, 15, 20, 15);
+            }
             // 车轮
             ctx.fillStyle = '#263238';
-            [x + 20, x + 65, x + 115, x + 155, x + 195, x + 230].forEach(wx => {
+            const wheelXs = [20, 65];
+            for (let i = 0; i < 4; i++) {
+                wheelXs.push(115 + i * 75, 155 + i * 75);
+            }
+            wheelXs.forEach(wx => {
                 ctx.beginPath();
-                ctx.arc(wx, y + 60, 8, 0, Math.PI * 2);
+                ctx.arc(wx, 60, 8, 0, Math.PI * 2);
                 ctx.fill();
             });
-            // 烟雾
+            // 烟雾（从第一节火车头的烟囱冒出）
             ctx.fillStyle = 'rgba(255,255,255,0.4)';
             ctx.beginPath();
-            ctx.arc(x - 10, y - 10, 10, 0, Math.PI * 2);
-            ctx.arc(x - 25, y - 20, 14, 0, Math.PI * 2);
-            ctx.arc(x - 45, y - 30, 18, 0, Math.PI * 2);
+            ctx.arc(68, -35, 10, 0, Math.PI * 2);
+            ctx.arc(55, -50, 14, 0, Math.PI * 2);
+            ctx.arc(40, -65, 18, 0, Math.PI * 2);
             ctx.fill();
             ctx.restore();
         }
@@ -2971,6 +3003,7 @@
             grasslandHillOffset = 0;
             grasslandSheep = [];
             trainX = -300;
+            railwayMountainOffset = 0;
 
             player.y = GROUND_Y - PLAYER_HEIGHT + GROUND_Y_OFFSET;
             player.vy = 0;
