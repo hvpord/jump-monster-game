@@ -384,7 +384,7 @@
                 点击空格或者屏幕躲避怪兽
             </div>
            <button id="startBtn">开始游戏</button>
-           <div class="version">v1.7.9</div>
+           <div class="version">v1.8.0</div>
            <button id="resetHighScoreBtn" class="reset-highscore-btn">重置最高分</button>
         </div>
 
@@ -3067,14 +3067,14 @@
             } else if (item.type === 'rocket') {
                 const rocketCount = 1 + player.skillBooks;
                 const maxArcHeight = 230;
-                let currentDuration = ROCKET_FLIGHT_DURATION;
+                let currentDuration = ROCKET_FLIGHT_DURATION; // 第一枚 3 秒
                 for (let i = 0; i < rocketCount; i++) {
                     if (i > 0) {
-                        // 后续火箭比前一个多 1-1.5 秒
-                        currentDuration += 60 + Math.floor(Math.random() * 31);
+                        // 后续火箭比前一个多 0.4-1.2 秒随机间隔
+                        currentDuration += 24 + Math.floor(Math.random() * 49);
                     }
-                    // 落点随机，保持在屏幕内并留出边距
-                    const targetX = 60 + Math.random() * (GAME_WIDTH - 120);
+                    // 落点限制在屏幕右侧三分之二区域，并留出边距
+                    const targetX = GAME_WIDTH / 3 + 40 + Math.random() * (GAME_WIDTH * 2 / 3 - 80);
                     let arcHeight;
                     if (rocketCount === 1) {
                         arcHeight = 220;
