@@ -384,7 +384,7 @@
                 点击空格或者屏幕躲避怪兽
             </div>
            <button id="startBtn">开始游戏</button>
-           <div class="version">v1.8.2</div>
+           <div class="version">v1.8.3</div>
            <button id="resetHighScoreBtn" class="reset-highscore-btn">重置最高分</button>
         </div>
 
@@ -428,7 +428,6 @@
         const bookImg = new Image();
         const roketImg = new Image();
         const boomImg = new Image();
-        const hamImg = new Image();
         shitouImg.src = 'shitou.png';
         duoduoImg.src = 'duoduo.png';
         jeepImg.src = 'jeep.png';
@@ -438,11 +437,10 @@
         bookImg.src = 'book.png';
         roketImg.src = 'roket.png';
         boomImg.src = 'boom.png';
-        hamImg.src = 'ham.png';
         let playerAvatar = null;
         let monsterAvatar = null;
         let avatarImagesReady = 0;
-        [shitouImg, duoduoImg, jeepImg, footballImg, camelImg, sheepImg, bookImg, roketImg, boomImg, hamImg].forEach(img => {
+        [shitouImg, duoduoImg, jeepImg, footballImg, camelImg, sheepImg, bookImg, roketImg, boomImg].forEach(img => {
             img.onload = () => { avatarImagesReady++; };
         });
 
@@ -455,10 +453,6 @@
         const PLAYER_WIDTH = 42;
         const PLAYER_HEIGHT = 52;
         const JUMP_VELOCITY = -13;
-        const BIG_SCALE = 1.5;
-        const BIG_JUMP_VELOCITY = -17;
-        const STOMP_TOLERANCE = 22;
-        const STOMP_BOUNCE = -9;
         const GRAVITY = 0.6;
         const GROUND_Y_OFFSET = 5;
         const FLY_HEIGHT_OFFSET = 90;
@@ -586,7 +580,6 @@
             footballKicked: false,
             footballPending: false,
             skillBooks: 0,
-            isBig: false,
             footballX: 0,
             footballY: 0,
             footballVX: 0,
@@ -1132,9 +1125,6 @@
                 } else if (type === 'rocket') {
                     this.width = 40;
                     this.height = 70;
-                } else if (type === 'ham') {
-                    this.width = 48;
-                    this.height = 48;
                 } else {
                     this.width = 32;
                     this.height = 32;
@@ -1170,8 +1160,6 @@
                     this.drawSkillBook(cx, cy);
                 } else if (this.type === 'rocket') {
                     this.drawRocket(cx, cy);
-                } else if (this.type === 'ham') {
-                    this.drawHam(cx, cy);
                 }
                 ctx.restore();
             }
@@ -1359,27 +1347,6 @@
                     ctx.fill();
                     ctx.fillStyle = '#ecf0f1';
                     ctx.fillRect(-w / 4, h / 6, w / 2, h / 3);
-                }
-                ctx.restore();
-            }
-
-            drawHam(cx, cy) {
-                ctx.save();
-                ctx.translate(cx, cy);
-                ctx.rotate(Math.sin(frameCount * 0.1 + this.bobOffset) * 0.05);
-                const size = this.width;
-                if (hamImg.complete && hamImg.naturalWidth > 0) {
-                    ctx.drawImage(hamImg, -size / 2, -size / 2, size, size);
-                } else {
-                    // fallback：粉色肉块
-                    ctx.fillStyle = '#e08e79';
-                    ctx.beginPath();
-                    ctx.ellipse(0, 0, size / 2, size * 0.4, 0, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.fillStyle = '#f5f5f5';
-                    ctx.beginPath();
-                    ctx.arc(size * 0.35, -size * 0.25, size * 0.15, 0, Math.PI * 2);
-                    ctx.fill();
                 }
                 ctx.restore();
             }
@@ -1871,7 +1838,6 @@
         // ===== 道具生成 =====
         function spawnItem() {
             const types = ['hammer', 'wings', 'stone', 'shield', 'jeep', 'football', 'rocket'];
-            if (!player.isBig) types.push('ham');
             const type = types[Math.floor(Math.random() * types.length)];
             items.push(new Item(type, GAME_WIDTH + 30));
             itemSpawnTimer = 0;
@@ -1947,7 +1913,7 @@
             }
 
             if (!player.isJumping) {
-                player.vy = player.isBig ? BIG_JUMP_VELOCITY : JUMP_VELOCITY;
+                player.vy = JUMP_VELOCITY;
                 player.isJumping = true;
                 player.jumpCount = 1;
                 playJumpSound();
@@ -3139,12 +3105,6 @@
                         arcHeight
                     ));
                 }
-            } else if (item.type === 'ham') {
-                player.isBig = true;
-                player.width = PLAYER_WIDTH * BIG_SCALE;
-                player.height = PLAYER_HEIGHT * BIG_SCALE;
-                player.y = GROUND_Y - player.height + GROUND_Y_OFFSET;
-                player.vy = 0;
             }
             item.collected = true;
             playItemSound();
@@ -3176,9 +3136,6 @@
             if (player.footballTimer > 0) {
                 const seconds = Math.ceil(player.footballTimer / 60);
                 powerupDisplay.innerHTML += `<div class="powerup-tag" style="color:#fff">⚽ 足球 ${seconds}s</div>`;
-            }
-            if (player.isBig) {
-                powerupDisplay.innerHTML += `<div class="powerup-tag" style="color:#e08e79">🍖 变大</div>`;
             }
         }
 
@@ -3265,34 +3222,6 @@
                     } else if (player.shieldTimer > 0) {
                         knockMonster(monster, 1);
                         player.shieldTimer = 0;
-                    } else if (player.isBig) {
-                        // 变大状态：判断是踩还是正面撞
-                        const visualPlayerBottom = player.y + player.height;
-                        const prevVisualPlayerBottom = visualPlayerBottom - player.vy;
-                        const monsterTop = monster.y;
-                        const monsterBottom = monster.y + monster.height;
-
-                        // 踩踏：玩家正在明显下落，且本帧底部进入怪物上半部分，
-                        // 同时上一帧底部在怪物顶部之上（说明是从上往下落）
-                        const isStomp = player.vy > 1.5 &&
-                                        visualPlayerBottom >= monsterTop - 5 &&
-                                        visualPlayerBottom <= monsterTop + STOMP_TOLERANCE &&
-                                        prevVisualPlayerBottom <= monsterTop + STOMP_TOLERANCE;
-
-                        if (isStomp) {
-                            knockMonster(monster, 1);
-                            player.vy = STOMP_BOUNCE;
-                        } else {
-                            // 正面撞：打飞怪兽并变回正常大小
-                            knockMonster(monster, 1);
-                            player.isBig = false;
-                            player.width = PLAYER_WIDTH;
-                            player.height = PLAYER_HEIGHT;
-                            player.y = GROUND_Y - player.height + GROUND_Y_OFFSET;
-                            player.vy = 0;
-                            player.invincibleTimer = 60; // 1秒短暂无敌，避免立即再中
-                            break; // 同一帧避免连续命中
-                        }
                     } else {
                         startDeath();
                         return;
@@ -3602,7 +3531,6 @@
             player.footballKicked = false;
             player.footballPending = false;
             player.skillBooks = 0;
-            player.isBig = false;
             player.width = PLAYER_WIDTH;
             player.height = PLAYER_HEIGHT;
             player.isDead = false;
