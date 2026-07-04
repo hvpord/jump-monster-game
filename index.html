@@ -384,7 +384,7 @@
                 点击空格或者屏幕躲避怪兽
             </div>
            <button id="startBtn">开始游戏</button>
-           <div class="version">v1.7.8</div>
+           <div class="version">v1.7.9</div>
            <button id="resetHighScoreBtn" class="reset-highscore-btn">重置最高分</button>
         </div>
 
@@ -3146,8 +3146,8 @@
                 }
             }
 
-            // 足球带球/滞留期间：足球本身碰撞怪兽
-            if (!player.footballKicked && player.footballX + 60 > 0) {
+            // 足球带球/滞留期间：足球本身碰撞怪兽（车上装载时不参与碰撞）
+            if (player.jeepTimer <= 0 && !player.footballKicked && player.footballX + 60 > 0) {
                 const ballHitbox = {
                     x: player.footballX + 8,
                     y: player.footballY + 8,
