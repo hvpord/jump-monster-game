@@ -365,7 +365,7 @@
                 点击空格或者屏幕躲避怪兽
             </div>
            <button id="startBtn">开始游戏</button>
-           <div class="version">v1.7.4</div>
+           <div class="version">v1.7.5</div>
         </div>
 
         <!-- 结束界面 -->
@@ -1805,13 +1805,22 @@
             const type = types[Math.floor(Math.random() * types.length)];
             items.push(new Item(type, GAME_WIDTH + 30));
             itemSpawnTimer = 0;
-            nextItemSpawnTime = ITEM_SPAWN_INTERVAL_MIN + Math.random() * (ITEM_SPAWN_INTERVAL_MAX - ITEM_SPAWN_INTERVAL_MIN);
+            nextItemSpawnTime = getNextItemSpawnTime();
         }
 
         // ===== 获取当前怪兽速度（动态难度：每10分提升5%） =====
         function getCurrentMonsterSpeed() {
-            const level = Math.floor(score / 10);
-            return MONSTER_SPEED_BASE * Math.pow(1.05, level);
+            // 从第 7 分开始，每 10 分速度倍数 +0.1（1.0 -> 1.1 -> 1.2 ...）
+            const speedMultiplier = 1.0 + 0.1 * Math.floor((score + 3) / 10);
+            return MONSTER_SPEED_BASE * speedMultiplier;
+        }
+
+        // ===== 获取下一次道具生成间隔（每20分缩短1秒，保留随机范围） =====
+        function getNextItemSpawnTime() {
+            const reduction = Math.floor(score / 20) * 60; // 每20分减少1秒（60帧）
+            const min = Math.max(120, ITEM_SPAWN_INTERVAL_MIN - reduction);
+            const max = Math.max(min + 120, ITEM_SPAWN_INTERVAL_MAX - reduction);
+            return min + Math.random() * (max - min);
         }
 
         // ===== 更新得分与速度显示 =====
@@ -3028,6 +3037,7 @@
                 }
             } else if (item.type === 'rocket') {
                 const rocketCount = 1 + player.skillBooks;
+                const maxArcHeight = 230; // 确保火箭全程不飞出屏幕顶部
                 for (let i = 0; i < rocketCount; i++) {
                     const duration = ROCKET_FLIGHT_DURATION + i * 180; // 5s, 8s, 11s, ...
                     let targetX;
@@ -3036,7 +3046,13 @@
                     } else {
                         targetX = GAME_WIDTH * (0.25 + 0.5 * i / (rocketCount - 1));
                     }
-                    const arcHeight = 220 + i * 60;
+                    let arcHeight;
+                    if (rocketCount === 1) {
+                        arcHeight = 220;
+                    } else {
+                        arcHeight = 140 + (maxArcHeight - 140) * (i / (rocketCount - 1));
+                    }
+                    arcHeight = Math.min(arcHeight, maxArcHeight);
                     activeRockets.push(new Rocket(
                         player.x + player.width / 2,
                         player.y + player.height / 2,
@@ -3429,7 +3445,7 @@
             spawnTimer = 0;
             nextSpawnTime = SPAWN_INTERVAL_MIN;
             itemSpawnTimer = 0;
-            nextItemSpawnTime = ITEM_SPAWN_INTERVAL_MIN + Math.random() * (ITEM_SPAWN_INTERVAL_MAX - ITEM_SPAWN_INTERVAL_MIN);
+            nextItemSpawnTime = getNextItemSpawnTime();
             skillBookSpawnTimer = 0;
             nextSkillBookSpawnTime = 30 * 60 + Math.floor(Math.random() * 20 * 60);
             flyingSpawnTimer = 0;
