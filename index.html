@@ -320,7 +320,7 @@
                 点击空格或者屏幕躲避怪兽
             </div>
            <button id="startBtn">开始游戏</button>
-           <div class="version">v1.6.1</div>
+           <div class="version">v1.6.2</div>
         </div>
 
         <!-- 结束界面 -->
@@ -420,7 +420,7 @@
         const HAMMER_HITS = 5;           // 锤子可击飞 5 个怪兽
         const FLY_DURATION = 600;
         const SHIELD_DURATION = 1200;
-        const JEEP_AMMO = 15;            // 吉普车可发射15发后消失
+        const JEEP_AMMO = 10;            // 吉普车基础可发射10发后消失
         const FOOTBALL_DRIBBLE_DURATION = 360; // 6秒
         const STONE_SPEED = 9;
         const DEATH_ANIMATION_DURATION = 80;
@@ -657,6 +657,9 @@
                 this.vx = -speed;
                 this.vy = 0;
                 this.rotation = 0;
+                this.vRotation = 0;
+                this.knockEffect = 0;
+                this.knockFrame = 0;
                 this.isJumping = false;
 
                 if (type === 'big') {
@@ -692,7 +695,16 @@
                     this.x += this.vx;
                     this.y += this.vy;
                     this.vy += GRAVITY;
-                    this.rotation += 0.15;
+                    this.rotation += this.vRotation;
+                    this.knockFrame++;
+
+                    // 撞右墙弹回效果
+                    if (this.knockEffect === 2 && this.x + this.width > GAME_WIDTH) {
+                        this.x = GAME_WIDTH - this.width;
+                        this.vx = -Math.abs(this.vx) * 0.6;
+                        this.vy = -6;
+                        this.vRotation = -0.3;
+                    }
                     return;
                 }
 
@@ -2627,8 +2639,35 @@
                 updateScoreDisplay();
             }
             monster.isKnocked = true;
-            monster.vx = 7 * direction;
-            monster.vy = -6;
+            monster.knockEffect = Math.floor(Math.random() * 5);
+            monster.knockFrame = 0;
+            switch (monster.knockEffect) {
+                case 0: // 经典击飞
+                    monster.vx = 7 * direction;
+                    monster.vy = -6;
+                    monster.vRotation = 0.15;
+                    break;
+                case 1: // 高速旋转向上
+                    monster.vx = 5 * direction;
+                    monster.vy = -13;
+                    monster.vRotation = 0.45;
+                    break;
+                case 2: // 猛撞右墙再掉落
+                    monster.vx = 16 * direction;
+                    monster.vy = -9;
+                    monster.vRotation = 0.2;
+                    break;
+                case 3: // 直接右上飞出屏幕
+                    monster.vx = 10 * direction;
+                    monster.vy = -15;
+                    monster.vRotation = 0.25;
+                    break;
+                case 4: // 向后猛摔
+                    monster.vx = -10 * direction;
+                    monster.vy = -12;
+                    monster.vRotation = -0.35;
+                    break;
+            }
             playKnockSound();
         }
 
@@ -2683,8 +2722,8 @@
                 projectiles.push(new StoneProjectile(player.x + player.width, player.y + player.height / 2));
             } else if (item.type === 'jeep') {
                 if (player.jeepTimer > 0) {
-                    // 已在车上，再吃到车补充 10 发弹药
-                    player.jeepAmmo += 10;
+                    // 已在车上，再吃到车补充 10+技能书 发弹药
+                    player.jeepAmmo += 10 + player.skillBooks;
                 } else {
                     player.jeepTimer = 1; // 标记处于吉普车状态
                     player.jeepAmmo = getJeepAmmo();
