@@ -320,7 +320,7 @@
                 点击空格或者屏幕躲避怪兽
             </div>
            <button id="startBtn">开始游戏</button>
-           <div class="version">v1.5.7</div>
+           <div class="version">v1.5.8</div>
         </div>
 
         <!-- 结束界面 -->
@@ -2469,42 +2469,47 @@
             ctx.translate(x, y);
             ctx.scale(scale, scale);
 
-            // 第一节：火车头
-            ctx.fillStyle = '#37474f';
-            ctx.fillRect(0, 0, 90, 55);
-            // 烟囱
-            ctx.fillStyle = '#263238';
-            ctx.fillRect(60, -18, 16, 18);
-            // 车厢（共四节）
+            // 火车向左→右开，车头在最右侧
+            // 四节车厢在左
             ctx.fillStyle = '#455a64';
             for (let i = 0; i < 4; i++) {
-                ctx.fillRect(95 + i * 75, 5, 70, 50);
+                ctx.fillRect(i * 75, 5, 70, 50);
             }
+            // 车头在最右侧
+            ctx.fillStyle = '#37474f';
+            ctx.fillRect(300, 0, 90, 55);
+            // 烟囱（在车头前部上方）
+            ctx.fillStyle = '#263238';
+            ctx.fillRect(355, -18, 16, 18);
+
             // 窗户
             ctx.fillStyle = '#b3e5fc';
-            ctx.fillRect(10, 10, 25, 18);
-            ctx.fillRect(45, 10, 25, 18);
             for (let i = 0; i < 4; i++) {
-                ctx.fillRect(105 + i * 75, 15, 20, 15);
-                ctx.fillRect(135 + i * 75, 15, 20, 15);
+                ctx.fillRect(5 + i * 75, 15, 20, 15);
+                ctx.fillRect(35 + i * 75, 15, 20, 15);
             }
+            ctx.fillRect(310, 10, 25, 18);
+            ctx.fillRect(345, 10, 25, 18);
+
             // 车轮
             ctx.fillStyle = '#263238';
-            const wheelXs = [20, 65];
+            const wheelXs = [];
             for (let i = 0; i < 4; i++) {
-                wheelXs.push(115 + i * 75, 155 + i * 75);
+                wheelXs.push(20 + i * 75, 60 + i * 75);
             }
+            wheelXs.push(320, 365);
             wheelXs.forEach(wx => {
                 ctx.beginPath();
                 ctx.arc(wx, 60, 8, 0, Math.PI * 2);
                 ctx.fill();
             });
-            // 烟雾（从第一节火车头的烟囱冒出）
+
+            // 烟雾（从车头烟囱冒出，向后方左侧飘散）
             ctx.fillStyle = 'rgba(255,255,255,0.4)';
             ctx.beginPath();
-            ctx.arc(68, -35, 10, 0, Math.PI * 2);
-            ctx.arc(55, -50, 14, 0, Math.PI * 2);
-            ctx.arc(40, -65, 18, 0, Math.PI * 2);
+            ctx.arc(363, -35, 10, 0, Math.PI * 2);
+            ctx.arc(345, -50, 14, 0, Math.PI * 2);
+            ctx.arc(320, -65, 18, 0, Math.PI * 2);
             ctx.fill();
             ctx.restore();
         }
