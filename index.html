@@ -320,7 +320,7 @@
                 点击空格或者屏幕躲避怪兽
             </div>
            <button id="startBtn">开始游戏</button>
-           <div class="version">v1.5.9</div>
+           <div class="version">v1.6.0</div>
         </div>
 
         <!-- 结束界面 -->
@@ -357,16 +357,18 @@
         const footballImg = new Image();
         const camelImg = new Image();
         const sheepImg = new Image();
+        const bookImg = new Image();
         shitouImg.src = 'shitou.png';
         duoduoImg.src = 'duoduo.png';
         jeepImg.src = 'jeep.png';
         footballImg.src = 'football.png';
         camelImg.src = 'camel.png';
         sheepImg.src = 'sheep.png';
+        bookImg.src = 'book.png';
         let playerAvatar = null;
         let monsterAvatar = null;
         let avatarImagesReady = 0;
-        [shitouImg, duoduoImg, jeepImg, footballImg, camelImg, sheepImg].forEach(img => {
+        [shitouImg, duoduoImg, jeepImg, footballImg, camelImg, sheepImg, bookImg].forEach(img => {
             img.onload = () => { avatarImagesReady++; };
         });
 
@@ -1140,41 +1142,39 @@
                 ctx.translate(cx, cy);
                 ctx.rotate(Math.sin(frameCount * 0.1 + this.bobOffset) * 0.1);
 
-                // 书本主体
-                ctx.fillStyle = '#8e44ad';
-                ctx.beginPath();
-                ctx.roundRect(-14, -18, 28, 36, 3);
-                ctx.fill();
-
-                // 书页
-                ctx.fillStyle = '#f5f5dc';
-                ctx.beginPath();
-                ctx.roundRect(-10, -14, 20, 28, 2);
-                ctx.fill();
-
-                // 书脊/装订线
-                ctx.strokeStyle = '#8e44ad';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.moveTo(0, -14); ctx.lineTo(0, 14);
-                ctx.stroke();
-
-                // 文字线
-                ctx.strokeStyle = '#555';
-                ctx.lineWidth = 1.5;
-                ctx.beginPath();
-                ctx.moveTo(-6, -7); ctx.lineTo(-2, -7);
-                ctx.moveTo(3, -7); ctx.lineTo(7, -7);
-                ctx.moveTo(-6, 0); ctx.lineTo(7, 0);
-                ctx.moveTo(-6, 7); ctx.lineTo(7, 7);
-                ctx.stroke();
-
-                // 发光边框
-                ctx.strokeStyle = '#d2b4de';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.roundRect(-14, -18, 28, 36, 3);
-                ctx.stroke();
+                if (bookImg.complete && bookImg.naturalWidth > 0) {
+                    const w = 36;
+                    const h = 36;
+                    ctx.drawImage(bookImg, -w / 2, -h / 2, w, h);
+                } else {
+                    // fallback：书本样式
+                    ctx.fillStyle = '#8e44ad';
+                    ctx.beginPath();
+                    ctx.roundRect(-14, -18, 28, 36, 3);
+                    ctx.fill();
+                    ctx.fillStyle = '#f5f5dc';
+                    ctx.beginPath();
+                    ctx.roundRect(-10, -14, 20, 28, 2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#8e44ad';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(0, -14); ctx.lineTo(0, 14);
+                    ctx.stroke();
+                    ctx.strokeStyle = '#555';
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.moveTo(-6, -7); ctx.lineTo(-2, -7);
+                    ctx.moveTo(3, -7); ctx.lineTo(7, -7);
+                    ctx.moveTo(-6, 0); ctx.lineTo(7, 0);
+                    ctx.moveTo(-6, 7); ctx.lineTo(7, 7);
+                    ctx.stroke();
+                    ctx.strokeStyle = '#d2b4de';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.roundRect(-14, -18, 28, 36, 3);
+                    ctx.stroke();
+                }
 
                 ctx.restore();
             }
@@ -2712,6 +2712,10 @@
         // ===== 更新道具状态显示 =====
         function updatePowerupDisplay() {
             powerupDisplay.innerHTML = '';
+            // 技能书图标逐个显示，放在最上面
+            for (let i = 0; i < player.skillBooks; i++) {
+                powerupDisplay.innerHTML += `<div class="powerup-tag" style="color:#d2b4de">📖 技能书</div>`;
+            }
             if (player.invincibleTimer > 0) {
                 const seconds = Math.ceil(player.invincibleTimer / 60);
                 powerupDisplay.innerHTML += `<div class="powerup-tag hammer">🔨 锤子 ${player.hammerHits}下/${seconds}s</div>`;
@@ -2730,9 +2734,6 @@
             if (player.footballTimer > 0) {
                 const seconds = Math.ceil(player.footballTimer / 60);
                 powerupDisplay.innerHTML += `<div class="powerup-tag" style="color:#fff">⚽ 足球 ${seconds}s</div>`;
-            }
-            if (player.skillBooks > 0) {
-                powerupDisplay.innerHTML += `<div class="powerup-tag" style="color:#d2b4de">📖 技能书 x${player.skillBooks}</div>`;
             }
         }
 
