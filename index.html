@@ -365,7 +365,7 @@
                 点击空格或者屏幕躲避怪兽
             </div>
            <button id="startBtn">开始游戏</button>
-           <div class="version">v1.7.3</div>
+           <div class="version">v1.7.4</div>
         </div>
 
         <!-- 结束界面 -->
@@ -475,6 +475,7 @@
         const FOOTBALL_DRIBBLE_DURATION = 360; // 6秒
         const ROCKET_FLIGHT_DURATION = 300; // 火箭起飞到爆炸 5秒
         const ROCKET_EXPLOSION_DURATION = 60; // 爆炸效果 1秒
+        const ROCKET_EASE_POWER = 1.7; // 飞行缓动指数：越大尾段越快
         const STONE_SPEED = 9;
         const DEATH_ANIMATION_DURATION = 80;
 
@@ -1615,13 +1616,15 @@
                 if (this.exploded) return;
                 this.frame++;
                 const t = Math.min(this.frame / this.duration, 1);
+                // 非线性缓动：前半段慢（上升慢），后半段快（下落快，尾段更快）
+                const et = Math.pow(t, ROCKET_EASE_POWER);
                 const prevX = this.x;
                 const prevY = this.y;
 
                 // 抛物线插值：中间向上拱起
-                this.x = this.startX + (this.targetX - this.startX) * t;
-                const linearY = this.startY + (this.targetY - this.startY) * t;
-                this.y = linearY - Math.sin(t * Math.PI) * this.arcHeight;
+                this.x = this.startX + (this.targetX - this.startX) * et;
+                const linearY = this.startY + (this.targetY - this.startY) * et;
+                this.y = linearY - Math.sin(et * Math.PI) * this.arcHeight;
 
                 // 根据运动方向计算旋转角度
                 const dx = this.x - prevX;
