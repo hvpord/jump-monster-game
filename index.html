@@ -384,7 +384,7 @@
                 点击空格或者屏幕躲避怪兽
             </div>
            <button id="startBtn">开始游戏</button>
-           <div class="version">v1.8.4</div>
+           <div class="version">v1.8.5</div>
            <button id="resetHighScoreBtn" class="reset-highscore-btn">重置最高分</button>
         </div>
 
@@ -1684,7 +1684,7 @@
 
             explode() {
                 this.exploded = true;
-                activeExplosion = new Explosion(this.targetX, this.targetY);
+                activeExplosion = new Explosion(this.x, this.y);
                 playExplosionSound();
                 // 秒杀当前屏幕上的所有怪物
                 for (const monster of monsters) {
