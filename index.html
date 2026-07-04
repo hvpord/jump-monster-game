@@ -365,7 +365,7 @@
                 点击空格或者屏幕躲避怪兽
             </div>
            <button id="startBtn">开始游戏</button>
-           <div class="version">v1.7.5</div>
+           <div class="version">v1.7.6</div>
         </div>
 
         <!-- 结束界面 -->
@@ -1810,9 +1810,17 @@
 
         // ===== 获取当前怪兽速度（动态难度：每10分提升5%） =====
         function getCurrentMonsterSpeed() {
-            // 从第 7 分开始，每 10 分速度倍数 +0.1（1.0 -> 1.1 -> 1.2 ...）
-            const speedMultiplier = 1.0 + 0.1 * Math.floor((score + 3) / 10);
-            return MONSTER_SPEED_BASE * speedMultiplier;
+            // 从第 7 分开始，每次难度提升的分数间隔比前一次扩大 10%，阈值四舍五入取整数
+            // 速度倍率：1.0 -> 1.1 -> 1.2 ...
+            let level = 0;
+            let threshold = 0;
+            let gap = 7;
+            while (score >= Math.round(threshold + gap)) {
+                threshold = Math.round(threshold + gap);
+                level++;
+                gap *= 1.1;
+            }
+            return MONSTER_SPEED_BASE * (1.0 + 0.1 * level);
         }
 
         // ===== 获取下一次道具生成间隔（每20分缩短1秒，保留随机范围） =====
