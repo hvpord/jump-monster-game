@@ -320,7 +320,7 @@
                 点击空格或者屏幕躲避怪兽
             </div>
            <button id="startBtn">开始游戏</button>
-           <div class="version">v1.6.3</div>
+           <div class="version">v1.6.4</div>
         </div>
 
         <!-- 结束界面 -->
@@ -2904,7 +2904,7 @@
 
             // 石块/吉普车子弹/导弹/足球踢出 击飞怪兽
             for (const projectile of projectiles) {
-                if (projectile.hit) continue;
+                if (projectile.hit || projectile.dying) continue;
                 for (const monster of monsters) {
                     if (monster.isKnocked) continue;
                     const typeOk = projectile instanceof StoneProjectile ||
