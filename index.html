@@ -384,7 +384,7 @@
                 点击空格或者屏幕躲避怪兽
             </div>
            <button id="startBtn">开始游戏</button>
-           <div class="version">v1.8.3</div>
+           <div class="version">v1.8.4</div>
            <button id="resetHighScoreBtn" class="reset-highscore-btn">重置最高分</button>
         </div>
 
@@ -428,6 +428,7 @@
         const bookImg = new Image();
         const roketImg = new Image();
         const boomImg = new Image();
+        const shieldImg = new Image();
         shitouImg.src = 'shitou.png';
         duoduoImg.src = 'duoduo.png';
         jeepImg.src = 'jeep.png';
@@ -437,10 +438,11 @@
         bookImg.src = 'book.png';
         roketImg.src = 'roket.png';
         boomImg.src = 'boom.png';
+        shieldImg.src = 'shield.png';
         let playerAvatar = null;
         let monsterAvatar = null;
         let avatarImagesReady = 0;
-        [shitouImg, duoduoImg, jeepImg, footballImg, camelImg, sheepImg, bookImg, roketImg, boomImg].forEach(img => {
+        [shitouImg, duoduoImg, jeepImg, footballImg, camelImg, sheepImg, bookImg, roketImg, boomImg, shieldImg].forEach(img => {
             img.onload = () => { avatarImagesReady++; };
         });
 
@@ -1218,31 +1220,35 @@
             drawShield(cx, cy) {
                 ctx.save();
                 ctx.translate(cx, cy);
-                ctx.fillStyle = '#3498db';
-                ctx.strokeStyle = '#fff';
-                ctx.lineWidth = 2;
+                const size = 40;
+                if (shieldImg.complete && shieldImg.naturalWidth > 0) {
+                    ctx.drawImage(shieldImg, -size / 2, -size / 2, size, size);
+                } else {
+                    ctx.fillStyle = '#3498db';
+                    ctx.strokeStyle = '#fff';
+                    ctx.lineWidth = 2;
 
-                // 经典盾牌轮廓
-                ctx.beginPath();
-                ctx.moveTo(0, -14);
-                ctx.bezierCurveTo(12, -12, 14, -2, 14, 4);
-                ctx.bezierCurveTo(14, 16, 4, 22, 0, 26);
-                ctx.bezierCurveTo(-4, 22, -14, 16, -14, 4);
-                ctx.bezierCurveTo(-14, -2, -12, -12, 0, -14);
-                ctx.closePath();
-                ctx.fill();
-                ctx.stroke();
+                    // 经典盾牌轮廓
+                    ctx.beginPath();
+                    ctx.moveTo(0, -14);
+                    ctx.bezierCurveTo(12, -12, 14, -2, 14, 4);
+                    ctx.bezierCurveTo(14, 16, 4, 22, 0, 26);
+                    ctx.bezierCurveTo(-4, 22, -14, 16, -14, 4);
+                    ctx.bezierCurveTo(-14, -2, -12, -12, 0, -14);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
 
-                // 中央十字/装饰
-                ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.moveTo(0, -10);
-                ctx.lineTo(0, 18);
-                ctx.moveTo(-8, 2);
-                ctx.lineTo(8, 2);
-                ctx.stroke();
-
+                    // 中央十字/装饰
+                    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(0, -10);
+                    ctx.lineTo(0, 18);
+                    ctx.moveTo(-8, 2);
+                    ctx.lineTo(8, 2);
+                    ctx.stroke();
+                }
                 ctx.restore();
             }
 
@@ -2234,30 +2240,35 @@
                 ctx.scale(0.9, 0.9);
                 ctx.rotate(Math.sin(frameCount * 0.2) * 0.05);
 
-                ctx.fillStyle = '#3498db';
-                ctx.strokeStyle = '#fff';
-                ctx.lineWidth = 3;
+                const size = 52;
+                if (shieldImg.complete && shieldImg.naturalWidth > 0) {
+                    ctx.drawImage(shieldImg, -size / 2, -size / 2, size, size);
+                } else {
+                    ctx.fillStyle = '#3498db';
+                    ctx.strokeStyle = '#fff';
+                    ctx.lineWidth = 3;
 
-                // 盾牌主体
-                ctx.beginPath();
-                ctx.moveTo(0, -26);
-                ctx.bezierCurveTo(18, -22, 22, -4, 22, 6);
-                ctx.bezierCurveTo(22, 26, 6, 36, 0, 44);
-                ctx.bezierCurveTo(-6, 36, -22, 26, -22, 6);
-                ctx.bezierCurveTo(-22, -4, -18, -22, 0, -26);
-                ctx.closePath();
-                ctx.fill();
-                ctx.stroke();
+                    // 盾牌主体
+                    ctx.beginPath();
+                    ctx.moveTo(0, -26);
+                    ctx.bezierCurveTo(18, -22, 22, -4, 22, 6);
+                    ctx.bezierCurveTo(22, 26, 6, 36, 0, 44);
+                    ctx.bezierCurveTo(-6, 36, -22, 26, -22, 6);
+                    ctx.bezierCurveTo(-22, -4, -18, -22, 0, -26);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
 
-                // 装饰十字
-                ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-                ctx.lineWidth = 3;
-                ctx.beginPath();
-                ctx.moveTo(0, -18);
-                ctx.lineTo(0, 32);
-                ctx.moveTo(-12, 4);
-                ctx.lineTo(12, 4);
-                ctx.stroke();
+                    // 装饰十字
+                    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.moveTo(0, -18);
+                    ctx.lineTo(0, 32);
+                    ctx.moveTo(-12, 4);
+                    ctx.lineTo(12, 4);
+                    ctx.stroke();
+                }
 
                 ctx.restore();
             }
