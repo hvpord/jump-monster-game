@@ -292,6 +292,50 @@
             color: #fff;
             box-shadow: 0 0 20px rgba(233,69,96,0.5);
         }
+        /* ===== 网页全屏按钮 ===== */
+        .fullscreen-btn {
+            position: absolute;
+            top: clamp(8px, 2vh, 15px);
+            right: clamp(120px, 18vw, 160px);
+            z-index: 11;
+            width: 40px;
+            height: 40px;
+            border: 2px solid rgba(255,255,255,0.15);
+            border-radius: 50%;
+            background: rgba(255,255,255,0.08);
+            color: #888;
+            font-size: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .fullscreen-btn:hover {
+            border-color: rgba(255,255,255,0.3);
+            background: rgba(255,255,255,0.15);
+            color: #bbb;
+        }
+        /* ===== 网页全屏状态 ===== */
+        #gameContainer.window-fullscreen {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            width: 100dvw !important;
+            height: 100vh !important;
+            height: 100dvh !important;
+            max-width: none !important;
+            border-radius: 0 !important;
+            z-index: 100 !important;
+            background: #000 !important;
+        }
+        #gameContainer.window-fullscreen #gameCanvas {
+            object-fit: contain;
+        }
   </style>
 </head>
 <body>
@@ -307,6 +351,7 @@
        <div id="powerupDisplay"></div>
         <!-- 音乐控制 -->
         <button id="musicBtn" class="music-btn" title="背景音乐开关">🎵</button>
+        <button id="fullscreenBtn" class="fullscreen-btn" title="网页全屏">⛶</button>
 
         <!-- 开始界面 -->
         <div id="startScreen">
@@ -320,7 +365,7 @@
                 点击空格或者屏幕躲避怪兽
             </div>
            <button id="startBtn">开始游戏</button>
-           <div class="version">v1.6.4</div>
+           <div class="version">v1.7.3</div>
         </div>
 
         <!-- 结束界面 -->
@@ -338,6 +383,7 @@
         // ============================================
 
         // ===== 获取DOM元素 =====
+        const gameContainer = document.getElementById('gameContainer');
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const startScreen = document.getElementById('startScreen');
@@ -349,6 +395,7 @@
         const highScoreEl = document.getElementById('highScore');
         const startBtn = document.getElementById('startBtn');
         const restartBtn = document.getElementById('restartBtn');
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
 
         // ===== 头像素材 =====
         const shitouImg = new Image();
@@ -358,6 +405,8 @@
         const camelImg = new Image();
         const sheepImg = new Image();
         const bookImg = new Image();
+        const roketImg = new Image();
+        const boomImg = new Image();
         shitouImg.src = 'shitou.png';
         duoduoImg.src = 'duoduo.png';
         jeepImg.src = 'jeep.png';
@@ -365,10 +414,12 @@
         camelImg.src = 'camel.png';
         sheepImg.src = 'sheep.png';
         bookImg.src = 'book.png';
+        roketImg.src = 'roket.png';
+        boomImg.src = 'boom.png';
         let playerAvatar = null;
         let monsterAvatar = null;
         let avatarImagesReady = 0;
-        [shitouImg, duoduoImg, jeepImg, footballImg, camelImg, sheepImg, bookImg].forEach(img => {
+        [shitouImg, duoduoImg, jeepImg, footballImg, camelImg, sheepImg, bookImg, roketImg, boomImg].forEach(img => {
             img.onload = () => { avatarImagesReady++; };
         });
 
@@ -422,6 +473,8 @@
         const SHIELD_DURATION = 1200;
         const JEEP_AMMO = 10;            // 吉普车基础可发射10发后消失
         const FOOTBALL_DRIBBLE_DURATION = 360; // 6秒
+        const ROCKET_FLIGHT_DURATION = 300; // 火箭起飞到爆炸 5秒
+        const ROCKET_EXPLOSION_DURATION = 60; // 爆炸效果 1秒
         const STONE_SPEED = 9;
         const DEATH_ANIMATION_DURATION = 80;
 
@@ -518,6 +571,8 @@
         let monsters = [];
         let items = [];
         let projectiles = [];
+        let activeRockets = []; // 火箭飞行实例数组
+        let activeExplosion = null; // 爆炸效果实例
         let flyingJeep = null; // 吉普车被撞飞后的动画对象
         let droppingHammer = null; // 锤子用完掉落的动画对象
 
@@ -643,6 +698,42 @@
             gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
             osc.start();
             osc.stop(audioCtx.currentTime + 0.5);
+        }
+
+        function playExplosionSound() {
+            if (!audioCtx) return;
+            const duration = 0.6;
+            const sampleRate = audioCtx.sampleRate;
+            const bufferSize = Math.ceil(sampleRate * duration);
+            const buffer = audioCtx.createBuffer(1, bufferSize, sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                const t = i / sampleRate;
+                const envelope = Math.max(0, 1 - t / duration);
+                data[i] = (Math.random() * 2 - 1) * envelope * 0.8;
+            }
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = buffer;
+            const noiseGain = audioCtx.createGain();
+            noiseGain.gain.setValueAtTime(0.8, audioCtx.currentTime);
+            noiseGain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+            noise.connect(noiseGain);
+            noiseGain.connect(audioCtx.destination);
+
+            const osc = audioCtx.createOscillator();
+            const oscGain = audioCtx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(120, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + duration);
+            oscGain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+            oscGain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+            osc.connect(oscGain);
+            oscGain.connect(audioCtx.destination);
+
+            noise.start();
+            osc.start();
+            noise.stop(audioCtx.currentTime + duration);
+            osc.stop(audioCtx.currentTime + duration);
         }
 
         // ===== 怪兽类 =====
@@ -1009,6 +1100,9 @@
                 } else if (type === 'football') {
                     this.width = 56;
                     this.height = 56;
+                } else if (type === 'rocket') {
+                    this.width = 40;
+                    this.height = 70;
                 } else {
                     this.width = 32;
                     this.height = 32;
@@ -1042,6 +1136,8 @@
                     this.drawFootball(cx, cy);
                 } else if (this.type === 'skillbook') {
                     this.drawSkillBook(cx, cy);
+                } else if (this.type === 'rocket') {
+                    this.drawRocket(cx, cy);
                 }
                 ctx.restore();
             }
@@ -1207,6 +1303,29 @@
                     ctx.stroke();
                 }
 
+                ctx.restore();
+            }
+
+            drawRocket(cx, cy) {
+                ctx.save();
+                ctx.translate(cx, cy);
+                ctx.rotate(Math.sin(frameCount * 0.1 + this.bobOffset) * 0.08);
+                const w = this.width;
+                const h = this.height;
+                if (roketImg.complete && roketImg.naturalWidth > 0) {
+                    ctx.drawImage(roketImg, -w / 2, -h / 2, w, h);
+                } else {
+                    ctx.fillStyle = '#e74c3c';
+                    ctx.beginPath();
+                    ctx.moveTo(0, -h / 2);
+                    ctx.lineTo(w / 3, h / 4);
+                    ctx.lineTo(0, h / 6);
+                    ctx.lineTo(-w / 3, h / 4);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.fillStyle = '#ecf0f1';
+                    ctx.fillRect(-w / 4, h / 6, w / 2, h / 3);
+                }
                 ctx.restore();
             }
 
@@ -1474,6 +1593,132 @@
             }
         }
 
+        // ===== 火箭道具飞行与爆炸 =====
+        class Rocket {
+            constructor(startX, startY, targetX, duration, arcHeight) {
+                this.startX = startX;
+                this.startY = startY;
+                this.targetX = targetX;
+                this.targetY = GROUND_Y - 10;
+                this.width = 48;
+                this.height = 80;
+                this.arcHeight = arcHeight;
+                this.frame = 0;
+                this.duration = duration;
+                this.x = startX;
+                this.y = startY;
+                this.rotation = 0;
+                this.exploded = false;
+            }
+
+            update() {
+                if (this.exploded) return;
+                this.frame++;
+                const t = Math.min(this.frame / this.duration, 1);
+                const prevX = this.x;
+                const prevY = this.y;
+
+                // 抛物线插值：中间向上拱起
+                this.x = this.startX + (this.targetX - this.startX) * t;
+                const linearY = this.startY + (this.targetY - this.startY) * t;
+                this.y = linearY - Math.sin(t * Math.PI) * this.arcHeight;
+
+                // 根据运动方向计算旋转角度
+                const dx = this.x - prevX;
+                const dy = this.y - prevY;
+                if (dx !== 0 || dy !== 0) {
+                    const angle = Math.atan2(dy, dx);
+                    // 贴图默认朝上，0 度对应朝上 (-PI/2)，需要补正 PI/2
+                    this.rotation = angle + Math.PI / 2;
+                }
+
+                if (this.frame >= this.duration) {
+                    this.explode();
+                }
+            }
+
+            explode() {
+                this.exploded = true;
+                activeExplosion = new Explosion(this.targetX, this.targetY);
+                playExplosionSound();
+                // 秒杀当前屏幕上的所有怪物
+                for (const monster of monsters) {
+                    if (monster.isKnocked) continue;
+                    knockMonster(monster, 1, true);
+                }
+            }
+
+            draw(ctx) {
+                if (this.exploded) return;
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation);
+                const w = this.width;
+                const h = this.height;
+                if (roketImg.complete && roketImg.naturalWidth > 0) {
+                    ctx.drawImage(roketImg, -w / 2, -h / 2, w, h);
+                } else {
+                    // fallback：简单火箭
+                    ctx.fillStyle = '#e74c3c';
+                    ctx.beginPath();
+                    ctx.moveTo(0, -h / 2);
+                    ctx.lineTo(w / 3, h / 4);
+                    ctx.lineTo(0, h / 6);
+                    ctx.lineTo(-w / 3, h / 4);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.fillStyle = '#ecf0f1';
+                    ctx.fillRect(-w / 4, h / 6, w / 2, h / 3);
+                }
+
+                ctx.restore();
+            }
+        }
+
+        class Explosion {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.frame = 0;
+                this.duration = ROCKET_EXPLOSION_DURATION;
+                this.width = 160;
+                this.height = 160;
+            }
+
+            update() {
+                this.frame++;
+            }
+
+            draw(ctx) {
+                const t = this.frame / this.duration;
+                const scale = 0.5 + t * 1.2;
+                const alpha = 1 - t;
+                ctx.save();
+                ctx.globalAlpha = alpha;
+                ctx.translate(this.x, this.y);
+                ctx.scale(scale, scale);
+                if (boomImg.complete && boomImg.naturalWidth > 0) {
+                    ctx.drawImage(boomImg, -this.width / 2, -this.height / 2, this.width, this.height);
+                } else {
+                    // fallback：爆炸圆
+                    ctx.fillStyle = '#f39c12';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.width / 2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#e74c3c';
+                    ctx.lineWidth = 8;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.width / 2 + 10, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                ctx.restore();
+            }
+
+            isFinished() {
+                return this.frame >= this.duration;
+            }
+        }
+
         // ===== 怪兽生成算法 =====
         function spawnMonster() {
             const currentSpeed = getCurrentMonsterSpeed();
@@ -1553,7 +1798,7 @@
 
         // ===== 道具生成 =====
         function spawnItem() {
-            const types = ['hammer', 'wings', 'stone', 'shield', 'jeep', 'football'];
+            const types = ['hammer', 'wings', 'stone', 'shield', 'jeep', 'football', 'rocket'];
             const type = types[Math.floor(Math.random() * types.length)];
             items.push(new Item(type, GAME_WIDTH + 30));
             itemSpawnTimer = 0;
@@ -2666,7 +2911,7 @@
         }
 
         // ===== 击倒怪兽 =====
-        function knockMonster(monster, direction = 1) {
+        function knockMonster(monster, direction = 1, silent = false) {
             if (!monster.scored) {
                 monster.scored = true;
                 passedMonsters++;
@@ -2703,7 +2948,7 @@
                     monster.vRotation = -0.35;
                     break;
             }
-            playKnockSound();
+            if (!silent) playKnockSound();
         }
 
         function dropFootball() {
@@ -2777,6 +3022,25 @@
                     player.footballKicked = false;
                     player.footballX = player.x + player.width + 10;
                     player.footballY = GROUND_Y - 18;
+                }
+            } else if (item.type === 'rocket') {
+                const rocketCount = 1 + player.skillBooks;
+                for (let i = 0; i < rocketCount; i++) {
+                    const duration = ROCKET_FLIGHT_DURATION + i * 180; // 5s, 8s, 11s, ...
+                    let targetX;
+                    if (rocketCount === 1) {
+                        targetX = GAME_WIDTH / 2;
+                    } else {
+                        targetX = GAME_WIDTH * (0.25 + 0.5 * i / (rocketCount - 1));
+                    }
+                    const arcHeight = 220 + i * 60;
+                    activeRockets.push(new Rocket(
+                        player.x + player.width / 2,
+                        player.y + player.height / 2,
+                        targetX,
+                        duration,
+                        arcHeight
+                    ));
                 }
             }
             item.collected = true;
@@ -3047,6 +3311,23 @@
                 projectile.draw(ctx);
             });
 
+            // 更新和绘制火箭
+            for (let i = activeRockets.length - 1; i >= 0; i--) {
+                const rocket = activeRockets[i];
+                rocket.update();
+                rocket.draw(ctx);
+                if (rocket.exploded) {
+                    activeRockets.splice(i, 1);
+                }
+            }
+
+            // 更新和绘制爆炸效果
+            if (activeExplosion) {
+                activeExplosion.update();
+                activeExplosion.draw(ctx);
+                if (activeExplosion.isFinished()) activeExplosion = null;
+            }
+
             // 更新和绘制被撞飞的吉普车
             if (flyingJeep) {
                 flyingJeep.x += flyingJeep.vx;
@@ -3130,6 +3411,8 @@
                 projectiles = [];
                 flyingJeep = null;
                 droppingHammer = null;
+                activeRockets = [];
+                activeExplosion = null;
                 stopBGM();
             }
         }
@@ -3153,6 +3436,8 @@
             projectiles = [];
             flyingJeep = null;
             droppingHammer = null;
+            activeRockets = [];
+            activeExplosion = null;
 
             // 初始化场景系统
             currentScene = 'night';
@@ -3195,6 +3480,7 @@
             powerupDisplay.innerHTML = '';
             startScreen.classList.add('hidden');
             gameOverScreen.style.display = 'none';
+            enterWindowFullscreen();
 
            initBackground();
             // 如果用户已开启音乐按钮，启动背景音乐
@@ -3437,6 +3723,17 @@
             }
         }
 
+        function toggleWindowFullscreen() {
+            gameContainer.classList.toggle('window-fullscreen');
+            fullscreenBtn.textContent = gameContainer.classList.contains('window-fullscreen') ? '⛶' : '⛶';
+            fullscreenBtn.title = gameContainer.classList.contains('window-fullscreen') ? '退出全屏' : '网页全屏';
+        }
+
+        function enterWindowFullscreen() {
+            gameContainer.classList.add('window-fullscreen');
+            fullscreenBtn.title = '退出全屏';
+        }
+
         // ===== 事件监听 =====
         document.addEventListener('keydown', (e) => {
             if (e.code === 'Space') {
@@ -3470,6 +3767,7 @@
         startBtn.addEventListener('click', startGame);
        restartBtn.addEventListener('click', startGame);
         document.getElementById('musicBtn').addEventListener('click', toggleBGM);
+        fullscreenBtn.addEventListener('click', toggleWindowFullscreen);
 
         // ===== 初始化 =====
         loadHighScore();
