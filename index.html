@@ -141,6 +141,25 @@
             color: #a0a0a0;
         }
 
+        .reset-highscore-btn {
+            position: absolute;
+            bottom: clamp(8px, 2vh, 15px);
+            left: clamp(10px, 2.5vw, 20px);
+            padding: 4px 10px;
+            font-size: clamp(11px, 2.2vw, 13px);
+            color: rgba(255, 255, 255, 0.6);
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .reset-highscore-btn:hover {
+            color: #fff;
+            background: rgba(233, 69, 96, 0.25);
+            border-color: rgba(233, 69, 96, 0.5);
+        }
+
         /* ===== 结束界面 ===== */
         #gameOverScreen {
             position: absolute;
@@ -365,7 +384,8 @@
                 点击空格或者屏幕躲避怪兽
             </div>
            <button id="startBtn">开始游戏</button>
-           <div class="version">v1.7.7</div>
+           <div class="version">v1.7.8</div>
+           <button id="resetHighScoreBtn" class="reset-highscore-btn">重置最高分</button>
         </div>
 
         <!-- 结束界面 -->
@@ -396,6 +416,7 @@
         const startBtn = document.getElementById('startBtn');
         const restartBtn = document.getElementById('restartBtn');
         const fullscreenBtn = document.getElementById('fullscreenBtn');
+        const resetHighScoreBtn = document.getElementById('resetHighScoreBtn');
 
         // ===== 头像素材 =====
         const shitouImg = new Image();
@@ -3795,6 +3816,12 @@
        restartBtn.addEventListener('click', startGame);
         document.getElementById('musicBtn').addEventListener('click', toggleBGM);
         fullscreenBtn.addEventListener('click', toggleWindowFullscreen);
+        resetHighScoreBtn.addEventListener('click', () => {
+            highScore = 0;
+            localStorage.removeItem('monsterJumpHighScore');
+            resetHighScoreBtn.textContent = '已重置';
+            setTimeout(() => { resetHighScoreBtn.textContent = '重置最高分'; }, 1000);
+        });
 
         // ===== 初始化 =====
         loadHighScore();
