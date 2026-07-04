@@ -320,7 +320,7 @@
                 点击空格或者屏幕躲避怪兽
             </div>
            <button id="startBtn">开始游戏</button>
-           <div class="version">v1.6.2</div>
+           <div class="version">v1.6.3</div>
         </div>
 
         <!-- 结束界面 -->
@@ -660,6 +660,8 @@
                 this.vRotation = 0;
                 this.knockEffect = 0;
                 this.knockFrame = 0;
+                this.stackRole = null; // 'bottom' | 'top' | null
+                this.stackPartner = null;
                 this.isJumping = false;
 
                 if (type === 'big') {
@@ -704,6 +706,23 @@
                         this.vx = -Math.abs(this.vx) * 0.6;
                         this.vy = -6;
                         this.vRotation = -0.3;
+                    }
+                    return;
+                }
+
+                // 上下重叠：下面怪兽被打掉后，上面的掉下来（不会死）
+                if (this.stackRole === 'top' && this.stackPartner && this.stackPartner.isKnocked) {
+                    this.x += this.vx;
+                    this.isJumping = true;
+                    this.y += this.vy;
+                    this.vy += GRAVITY;
+                    const groundLevel = GROUND_Y - this.height + GROUND_Y_OFFSET;
+                    if (this.y >= groundLevel) {
+                        this.y = groundLevel;
+                        this.vy = 0;
+                        this.isJumping = false;
+                        this.stackRole = null;
+                        this.stackPartner = null;
                     }
                     return;
                 }
@@ -1469,16 +1488,20 @@
 
             const rand = Math.random();
             let type;
-            if (rand < 0.35) {
+            if (rand < 0.30) {
                 type = 'normal';
-            } else if (rand < 0.55) {
+            } else if (rand < 0.48) {
                 type = 'big';
-            } else if (rand < 0.75) {
+            } else if (rand < 0.66) {
                 type = 'yellow';
-            } else if (rand < 0.9) {
+            } else if (rand < 0.80) {
                 type = 'fast';
-            } else {
+            } else if (rand < 0.88) {
                 type = 'combo';
+            } else if (rand < 0.94) {
+                type = 'adjacent'; // 两个无间隙并排的小怪兽
+            } else {
+                type = 'stacked'; // 上下重叠的小怪兽
             }
 
             if (type === 'combo') {
@@ -1488,6 +1511,18 @@
                     const x = SPAWN_MARGIN_RIGHT + i * gap;
                     monsters.push(new Monster('normal', x, currentSpeed));
                 }
+            } else if (type === 'adjacent') {
+                monsters.push(new Monster('normal', SPAWN_MARGIN_RIGHT, currentSpeed));
+                monsters.push(new Monster('normal', SPAWN_MARGIN_RIGHT + MONSTER_WIDTH, currentSpeed));
+            } else if (type === 'stacked') {
+                const bottom = new Monster('normal', SPAWN_MARGIN_RIGHT, currentSpeed);
+                const top = new Monster('normal', SPAWN_MARGIN_RIGHT, currentSpeed);
+                top.y = bottom.y - bottom.height + 5;
+                bottom.stackRole = 'bottom';
+                bottom.stackPartner = top;
+                top.stackRole = 'top';
+                top.stackPartner = bottom;
+                monsters.push(bottom, top);
             } else {
                 monsters.push(new Monster(type, SPAWN_MARGIN_RIGHT, currentSpeed));
             }
@@ -2811,6 +2846,10 @@
                     if (monster.isKnocked) continue;
                     if (rectsOverlap(ballHitbox, monster.getHitbox())) {
                         knockMonster(monster, 1);
+                        // 带球足球可以一次清除上下重叠的怪兽
+                        if (monster.stackPartner) {
+                            knockMonster(monster.stackPartner, 1);
+                        }
                     }
                 }
             }
@@ -2818,6 +2857,9 @@
             // 怪兽碰撞
             for (const monster of monsters) {
                 if (monster.isKnocked) continue;
+
+                // 飞行翅膀可以完整越过上下重叠的怪兽
+                if (monster.stackRole && player.flyTimer > 0) continue;
 
                 // 飞行怪兽只在玩家跳起或飞行时才能碰撞（吉普车体积大，也会被撞到）
                 if (monster.type === 'flying') {
@@ -2875,6 +2917,10 @@
                     if (projectile instanceof JeepMissile && monster.type !== 'flying') continue;
                     if (rectsOverlap(projectile.getHitbox(), monster.getHitbox())) {
                         knockMonster(monster, 1);
+                        // 足球踢出可以一次清除上下重叠的怪兽
+                        if (projectile instanceof FootballKick && monster.stackPartner) {
+                            knockMonster(monster.stackPartner, 1);
+                        }
                         if (projectile instanceof FootballKick) {
                             // 足球踢出后贯穿怪兽，不消失
                         } else if (projectile instanceof StoneProjectile) {
