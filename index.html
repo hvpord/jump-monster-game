@@ -365,7 +365,7 @@
                 点击空格或者屏幕躲避怪兽
             </div>
            <button id="startBtn">开始游戏</button>
-           <div class="version">v1.7.6</div>
+           <div class="version">v1.7.7</div>
         </div>
 
         <!-- 结束界面 -->
@@ -473,7 +473,7 @@
         const SHIELD_DURATION = 1200;
         const JEEP_AMMO = 10;            // 吉普车基础可发射10发后消失
         const FOOTBALL_DRIBBLE_DURATION = 360; // 6秒
-        const ROCKET_FLIGHT_DURATION = 300; // 火箭起飞到爆炸 5秒
+        const ROCKET_FLIGHT_DURATION = 180; // 第一枚火箭飞行 3 秒
         const ROCKET_EXPLOSION_DURATION = 60; // 爆炸效果 1秒
         const ROCKET_EASE_POWER = 1.7; // 飞行缓动指数：越大尾段越快
         const STONE_SPEED = 9;
@@ -3045,15 +3045,15 @@
                 }
             } else if (item.type === 'rocket') {
                 const rocketCount = 1 + player.skillBooks;
-                const maxArcHeight = 230; // 确保火箭全程不飞出屏幕顶部
+                const maxArcHeight = 230;
+                let currentDuration = ROCKET_FLIGHT_DURATION;
                 for (let i = 0; i < rocketCount; i++) {
-                    const duration = ROCKET_FLIGHT_DURATION + i * 180; // 5s, 8s, 11s, ...
-                    let targetX;
-                    if (rocketCount === 1) {
-                        targetX = GAME_WIDTH / 2;
-                    } else {
-                        targetX = GAME_WIDTH * (0.25 + 0.5 * i / (rocketCount - 1));
+                    if (i > 0) {
+                        // 后续火箭比前一个多 1-1.5 秒
+                        currentDuration += 60 + Math.floor(Math.random() * 31);
                     }
+                    // 落点随机，保持在屏幕内并留出边距
+                    const targetX = 60 + Math.random() * (GAME_WIDTH - 120);
                     let arcHeight;
                     if (rocketCount === 1) {
                         arcHeight = 220;
@@ -3065,7 +3065,7 @@
                         player.x + player.width / 2,
                         player.y + player.height / 2,
                         targetX,
-                        duration,
+                        currentDuration,
                         arcHeight
                     ));
                 }
