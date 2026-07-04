@@ -320,7 +320,7 @@
                 点击空格或者屏幕躲避怪兽
             </div>
            <button id="startBtn">开始游戏</button>
-           <div class="version">v1.6.0</div>
+           <div class="version">v1.6.1</div>
         </div>
 
         <!-- 结束界面 -->
@@ -2712,9 +2712,10 @@
         // ===== 更新道具状态显示 =====
         function updatePowerupDisplay() {
             powerupDisplay.innerHTML = '';
-            // 技能书图标逐个显示，放在最上面
-            for (let i = 0; i < player.skillBooks; i++) {
-                powerupDisplay.innerHTML += `<div class="powerup-tag" style="color:#d2b4de">📖 技能书</div>`;
+            // 技能书图标逐个显示在同一行，无文字
+            if (player.skillBooks > 0) {
+                const icons = '📖'.repeat(player.skillBooks);
+                powerupDisplay.innerHTML += `<div class="powerup-tag" style="color:#d2b4de">${icons}</div>`;
             }
             if (player.invincibleTimer > 0) {
                 const seconds = Math.ceil(player.invincibleTimer / 60);
