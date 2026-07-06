@@ -384,7 +384,7 @@
                 点击空格或者屏幕躲避怪兽
             </div>
            <button id="startBtn">开始游戏</button>
-           <div class="version">v1.8.6</div>
+           <div class="version">v1.8.7</div>
            <button id="resetHighScoreBtn" class="reset-highscore-btn">重置最高分</button>
         </div>
 
@@ -759,6 +759,40 @@
             osc.start();
             noise.stop(audioCtx.currentTime + duration);
             osc.stop(audioCtx.currentTime + duration);
+        }
+
+        function playRocketLaunchSound(durationSeconds = 0.6) {
+            if (!audioCtx) return;
+            const sampleRate = audioCtx.sampleRate;
+            const bufferSize = Math.ceil(sampleRate * durationSeconds);
+            const buffer = audioCtx.createBuffer(1, bufferSize, sampleRate);
+            const data = buffer.getChannelData(0);
+            // 生成白噪声作为喷射声基底
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = Math.random() * 2 - 1;
+            }
+
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = buffer;
+
+            // 低通滤波器：让噪声变得沉闷，模拟喷射气流
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(900, audioCtx.currentTime);
+            filter.frequency.exponentialRampToValueAtTime(250, audioCtx.currentTime + durationSeconds);
+
+            // 增益包络：快速起音后缓慢衰减
+            const gain = audioCtx.createGain();
+            gain.gain.setValueAtTime(0, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.3, audioCtx.currentTime + 0.06);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + durationSeconds);
+
+            noise.connect(filter);
+            filter.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            noise.start();
+            noise.stop(audioCtx.currentTime + durationSeconds);
         }
 
         // ===== 怪兽类 =====
@@ -3127,6 +3161,9 @@
                         currentDuration,
                         arcHeight
                     ));
+                    // 按火箭发射间隔错开播放喷射音效
+                    const launchDelaySeconds = i === 0 ? 0 : (currentDuration - ROCKET_FLIGHT_DURATION) / 60;
+                    setTimeout(() => playRocketLaunchSound(0.7), launchDelaySeconds * 1000);
                 }
             }
             item.collected = true;
