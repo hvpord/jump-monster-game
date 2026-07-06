@@ -384,7 +384,7 @@
                 点击空格或者屏幕躲避怪兽
             </div>
            <button id="startBtn">开始游戏</button>
-           <div class="version">v1.8.5</div>
+           <div class="version">v1.8.6</div>
            <button id="resetHighScoreBtn" class="reset-highscore-btn">重置最高分</button>
         </div>
 
@@ -581,6 +581,7 @@
             footballTimer: 0,
             footballKicked: false,
             footballPending: false,
+            footballRemainingOnJeep: 0,
             skillBooks: 0,
             footballX: 0,
             footballY: 0,
@@ -1969,12 +1970,13 @@
                 if (player.jeepTimer > 0) return;
             }
 
-            // 下车后开始暂存的足球（保留剩余时间）
+            // 下车后开始暂存的足球（恢复剩余时间，并应用技能书加成）
             if (player.footballPending) {
                 player.footballPending = false;
-                if (player.footballTimer <= 0) {
-                    player.footballTimer = FOOTBALL_DRIBBLE_DURATION;
-                }
+                player.footballTimer = player.footballRemainingOnJeep > 0
+                    ? player.footballRemainingOnJeep
+                    : getFootballDuration();
+                player.footballRemainingOnJeep = 0;
                 player.footballKicked = false;
                 player.footballX = player.x + player.width + 10;
                 player.footballY = GROUND_Y - 18;
@@ -3071,19 +3073,29 @@
                 if (player.jeepTimer > 0) {
                     // 已在车上，再吃到车补充 10+技能书 发弹药
                     player.jeepAmmo += 10 + player.skillBooks;
+                    // 车上已有球时重新吃到车，重置带球计时
+                    if (player.footballPending) {
+                        player.footballRemainingOnJeep = getFootballDuration();
+                    }
                 } else {
                     player.jeepTimer = 1; // 标记处于吉普车状态
                     player.jeepAmmo = getJeepAmmo();
-                }
-                // 带球时上车：暂停足球计时，改为车载状态
-                if (player.footballTimer > 0 && !player.footballKicked) {
-                    player.footballPending = true;
+                    // 正在带球时上车：暂停计时并保存剩余时间
+                    if (player.footballTimer > 0 && !player.footballKicked) {
+                        player.footballRemainingOnJeep = player.footballTimer;
+                        player.footballPending = true;
+                        player.footballTimer = 0; // 上车期间暂停带球倒计时
+                    } else {
+                        player.footballRemainingOnJeep = 0;
+                        player.footballPending = false;
+                    }
                 }
                 player.flyTimer = 0;
             } else if (item.type === 'football') {
                 if (player.jeepTimer > 0) {
-                    // 在车上吃足球：暂存，下车后触发
+                    // 在车上吃足球：暂存，下车后触发，应用技能书加成
                     player.footballPending = true;
+                    player.footballRemainingOnJeep = getFootballDuration();
                 } else {
                     player.footballTimer = getFootballDuration();
                     player.footballKicked = false;
@@ -3541,6 +3553,7 @@
             player.footballTimer = 0;
             player.footballKicked = false;
             player.footballPending = false;
+            player.footballRemainingOnJeep = 0;
             player.skillBooks = 0;
             player.width = PLAYER_WIDTH;
             player.height = PLAYER_HEIGHT;
