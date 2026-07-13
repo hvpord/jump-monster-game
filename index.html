@@ -431,7 +431,7 @@
                 点击空格或者屏幕躲避怪兽
             </div>
            <button id="startBtn">开始游戏</button>
-           <div class="version">v1.9.13</div>
+           <div class="version">v1.9.14</div>
            <button id="resetHighScoreBtn" class="reset-highscore-btn">重置最高分</button>
         </div>
 
@@ -2186,10 +2186,10 @@
             return 1 / Math.pow(1 + DENSITY_GROWTH_RATE, level);
         }
 
-        // ===== 获取当前最小怪物间距（随密度增加而缩小，保证高密度能真正体现出来） =====
+        // ===== 获取当前最小怪物间距（随密度增加而缩小，无下限，实际体验后调优） =====
         function getCurrentMinGap() {
             const density = 1 / getSpawnIntervalMultiplier();
-            return Math.max(70, Math.round(MIN_GAP_BETWEEN_MONSTERS / Math.sqrt(density)));
+            return Math.round(MIN_GAP_BETWEEN_MONSTERS / Math.sqrt(density));
         }
 
         // ===== 角色跳跃 =====
