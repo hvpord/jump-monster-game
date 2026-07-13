@@ -384,7 +384,7 @@
                 点击空格或者屏幕躲避怪兽
             </div>
            <button id="startBtn">开始游戏</button>
-           <div class="version">v1.8.8</div>
+           <div class="version">v1.9.1</div>
            <button id="resetHighScoreBtn" class="reset-highscore-btn">重置最高分</button>
         </div>
 
@@ -429,6 +429,7 @@
         const roketImg = new Image();
         const boomImg = new Image();
         const shieldImg = new Image();
+        const uavImg = new Image();
         shitouImg.src = 'shitou.png';
         duoduoImg.src = 'duoduo.png';
         jeepImg.src = 'jeep.png';
@@ -439,10 +440,11 @@
         roketImg.src = 'roket.png';
         boomImg.src = 'boom.png';
         shieldImg.src = 'shield.png';
+        uavImg.src = 'UAV.png';
         let playerAvatar = null;
         let monsterAvatar = null;
         let avatarImagesReady = 0;
-        [shitouImg, duoduoImg, jeepImg, footballImg, camelImg, sheepImg, bookImg, roketImg, boomImg, shieldImg].forEach(img => {
+        [shitouImg, duoduoImg, jeepImg, footballImg, camelImg, sheepImg, bookImg, roketImg, boomImg, shieldImg, uavImg].forEach(img => {
             img.onload = () => { avatarImagesReady++; };
         });
 
@@ -502,6 +504,14 @@
         const STONE_SPEED = 9;
         const DEATH_ANIMATION_DURATION = 80;
 
+        const UAV_DURATION = 60 * 60;          // 无人机持续 60 秒
+        const UAV_BASE_MAX_COUNT = 3;          // 最多积累 3 架
+        const UAV_FIRE_INTERVAL = 5 * 60;      // 基础发射间隔 5 秒
+        const UAV_SKILL_INTERVAL_REDUCTION = 0.3 * 60; // 每本技能书减少 0.3 秒
+        const UAV_SKILL_MAX_COUNT_STEP = 3;    // 每 3 本技能书上限 +1
+        const UAV_LASER_DURATION = 12;         // 激光显示帧数
+        const UAV_SPAWN_FLY_FRAMES = 30;       // 从角色头顶飞出的帧数
+
         // ===== 技能书加成后的道具数值 =====
         function getHammerDuration() { return INVINCIBLE_DURATION + player.skillBooks * 60; }
         function getHammerHits() { return HAMMER_HITS + player.skillBooks; }
@@ -509,6 +519,14 @@
         function getShieldDuration() { return SHIELD_DURATION + player.skillBooks * 60; }
         function getJeepAmmo() { return JEEP_AMMO + player.skillBooks; }
         function getFootballDuration() { return FOOTBALL_DRIBBLE_DURATION + player.skillBooks * 60; }
+
+        function getUavMaxCount() {
+            return UAV_BASE_MAX_COUNT + Math.floor(player.skillBooks / UAV_SKILL_MAX_COUNT_STEP);
+        }
+
+        function getUavFireInterval() {
+            return Math.max(30, UAV_FIRE_INTERVAL - player.skillBooks * UAV_SKILL_INTERVAL_REDUCTION);
+        }
 
         const SCENES = [
             { id: 'grassland', name: '晴空草原' },
@@ -600,6 +618,7 @@
         let activeExplosion = null; // 爆炸效果实例
         let flyingJeep = null; // 吉普车被撞飞后的动画对象
         let droppingHammer = null; // 锤子用完掉落的动画对象
+        let drones = []; // 无人机实例数组
 
         // ===== 背景装饰 =====
         let bgStars = [];
@@ -793,6 +812,22 @@
 
             noise.start();
             noise.stop(audioCtx.currentTime + durationSeconds);
+        }
+
+        function playUavLaserSound() {
+            if (!audioCtx) return;
+            const duration = 0.15;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(1200, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + duration);
+            gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
         }
 
         // ===== 怪兽类 =====
@@ -1162,6 +1197,9 @@
                 } else if (type === 'rocket') {
                     this.width = 40;
                     this.height = 70;
+                } else if (type === 'uav') {
+                    this.width = 48;
+                    this.height = 32;
                 } else {
                     this.width = 32;
                     this.height = 32;
@@ -1197,6 +1235,8 @@
                     this.drawSkillBook(cx, cy);
                 } else if (this.type === 'rocket') {
                     this.drawRocket(cx, cy);
+                } else if (this.type === 'uav') {
+                    this.drawUav(cx, cy);
                 }
                 ctx.restore();
             }
@@ -1388,6 +1428,27 @@
                     ctx.fill();
                     ctx.fillStyle = '#ecf0f1';
                     ctx.fillRect(-w / 4, h / 6, w / 2, h / 3);
+                }
+                ctx.restore();
+            }
+
+            drawUav(cx, cy) {
+                ctx.save();
+                ctx.translate(cx, cy);
+                ctx.rotate(Math.sin(frameCount * 0.1 + this.bobOffset) * 0.05);
+                const w = this.width;
+                const h = this.height;
+                if (uavImg.complete && uavImg.naturalWidth > 0) {
+                    ctx.drawImage(uavImg, -w / 2, -h / 2, w, h);
+                } else {
+                    ctx.fillStyle = '#7f8c8d';
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, w / 2, h / 3, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#e74c3c';
+                    ctx.beginPath();
+                    ctx.arc(0, -2, 3, 0, Math.PI * 2);
+                    ctx.fill();
                 }
                 ctx.restore();
             }
@@ -1799,6 +1860,148 @@
             }
         }
 
+        // ===== 无人机类 =====
+        class Drone {
+            constructor(spawnX, spawnY) {
+                this.spawnX = spawnX;
+                this.spawnY = spawnY;
+                this.x = spawnX;
+                this.y = spawnY;
+                this.spawnFrame = 0;
+                this.timer = UAV_DURATION;
+                this.state = 'active'; // 'active' | 'exiting'
+                this.cooldown = 0; // 0 表示就绪，首次生成后立即可以发射
+                this.width = 52;
+                this.height = 36;
+
+                // 在左半边天空随机选择一个盘旋锚点
+                this.orbitCx = 60 + Math.random() * (GAME_WIDTH / 2 - 120);
+                this.orbitCy = 40 + Math.random() * (GROUND_Y - 140);
+                this.orbitRx = 40 + Math.random() * 80;
+                this.orbitRy = 20 + Math.random() * 50;
+                this.orbitSpeedX = 0.02 + Math.random() * 0.03;
+                this.orbitSpeedY = 0.03 + Math.random() * 0.04;
+                this.orbitPhaseX = Math.random() * Math.PI * 2;
+                this.orbitPhaseY = Math.random() * Math.PI * 2;
+                this.driftOffset = Math.random() * 1000;
+
+                // 激光视觉效果
+                this.laserTimer = 0;
+                this.laserTargetX = 0;
+                this.laserTargetY = 0;
+            }
+
+            update() {
+                // 退场飞出
+                if (this.state === 'exiting') {
+                    this.x -= 6;
+                    this.y -= 1;
+                    if (this.laserTimer > 0) this.laserTimer--;
+                    return;
+                }
+
+                this.timer--;
+                if (this.timer <= 0) {
+                    this.state = 'exiting';
+                    return;
+                }
+
+                // 飞出动画
+                if (this.spawnFrame < UAV_SPAWN_FLY_FRAMES) {
+                    const t = this.spawnFrame / UAV_SPAWN_FLY_FRAMES;
+                    const ease = 1 - Math.pow(1 - t, 3);
+                    const targetX = this.orbitCx + Math.sin(this.orbitPhaseX) * this.orbitRx;
+                    const targetY = this.orbitCy + Math.sin(this.orbitPhaseY) * this.orbitRy;
+                    this.x = this.spawnX + (targetX - this.spawnX) * ease;
+                    this.y = this.spawnY + (targetY - this.spawnY) * ease;
+                    this.spawnFrame++;
+                } else {
+                    // 无规律盘旋：叠加两个不同频率的正弦运动，并缓慢漂移
+                    const t = frameCount;
+                    const drift = Math.sin((t + this.driftOffset) * 0.001) * 30;
+                    this.x = this.orbitCx + Math.sin(t * this.orbitSpeedX + this.orbitPhaseX) * this.orbitRx + drift;
+                    this.y = this.orbitCy + Math.sin(t * this.orbitSpeedY + this.orbitPhaseY) * this.orbitRy;
+
+                    // 限制在左半边天空
+                    this.x = Math.max(10, Math.min(GAME_WIDTH / 2 - 10, this.x));
+                    this.y = Math.max(20, Math.min(GROUND_Y - 80, this.y));
+                }
+
+                if (this.cooldown > 0) this.cooldown--;
+                if (this.laserTimer > 0) this.laserTimer--;
+            }
+
+            shouldRemove() {
+                return this.state === 'exiting' && this.x + this.width < -50;
+            }
+
+            fireAt(target) {
+                this.cooldown = getUavFireInterval();
+                this.laserTimer = UAV_LASER_DURATION;
+                this.laserTargetX = target.x + target.width / 2;
+                this.laserTargetY = target.y + target.height / 2;
+            }
+
+            isReady() {
+                return this.state === 'active' && this.spawnFrame >= UAV_SPAWN_FLY_FRAMES && this.cooldown <= 0;
+            }
+
+            draw(ctx) {
+                if (this.state === 'exiting' && this.x + this.width < -50) return;
+
+                // 最后 2 秒或退场时闪烁
+                let alpha = 1;
+                const isBlinking = this.state === 'exiting' || this.timer <= 2 * 60;
+                if (isBlinking) {
+                    alpha = 0.4 + 0.6 * Math.abs(Math.sin(frameCount * 0.3));
+                }
+
+                // 激光效果
+                if (this.laserTimer > 0) {
+                    const laserAlpha = (this.laserTimer / UAV_LASER_DURATION) * alpha;
+                    ctx.save();
+                    ctx.globalAlpha = laserAlpha;
+                    ctx.strokeStyle = '#ff0040';
+                    ctx.lineWidth = 4;
+                    ctx.shadowColor = '#ff0040';
+                    ctx.shadowBlur = 16;
+                    ctx.beginPath();
+                    ctx.moveTo(this.x, this.y);
+                    ctx.lineTo(this.laserTargetX, this.laserTargetY);
+                    ctx.stroke();
+
+                    ctx.strokeStyle = '#fff';
+                    ctx.lineWidth = 2;
+                    ctx.shadowBlur = 8;
+                    ctx.beginPath();
+                    ctx.moveTo(this.x, this.y);
+                    ctx.lineTo(this.laserTargetX, this.laserTargetY);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+
+                // 无人机贴图
+                ctx.save();
+                ctx.globalAlpha = alpha;
+                ctx.translate(this.x, this.y);
+                const sway = Math.sin(frameCount * 0.05 + this.driftOffset) * 0.08;
+                ctx.rotate(sway);
+                if (uavImg.complete && uavImg.naturalWidth > 0) {
+                    ctx.drawImage(uavImg, -this.width / 2, -this.height / 2, this.width, this.height);
+                } else {
+                    ctx.fillStyle = '#7f8c8d';
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, this.width / 2, this.height / 4, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#e74c3c';
+                    ctx.beginPath();
+                    ctx.arc(0, -2, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.restore();
+            }
+        }
+
         // ===== 怪兽生成算法 =====
         function spawnMonster() {
             const currentSpeed = getCurrentMonsterSpeed();
@@ -1878,7 +2081,7 @@
 
         // ===== 道具生成 =====
         function spawnItem() {
-            const types = ['hammer', 'wings', 'stone', 'shield', 'jeep', 'football', 'rocket'];
+            const types = ['hammer', 'wings', 'stone', 'shield', 'jeep', 'football', 'rocket', 'uav'];
             const type = types[Math.floor(Math.random() * types.length)];
             items.push(new Item(type, GAME_WIDTH + 30));
             itemSpawnTimer = 0;
@@ -3087,15 +3290,13 @@
                 player.skillBooks++;
             } else if (item.type === 'hammer') {
                 player.invincibleTimer = getHammerDuration();
-                player.hammerHits = getHammerHits();
+                const freshHits = getHammerHits();
+                const combinedHits = player.hammerHits + player.skillBooks;
+                player.hammerHits = Math.max(freshHits, combinedHits);
                 droppingHammer = null;
             } else if (item.type === 'wings') {
-                // 带球时吃翅膀，足球从后方滚走丢失
-                if (player.footballTimer > 0 && !player.footballKicked) {
-                    dropFootball();
-                }
-                // 吉普车上吃翅膀无效
-                if (player.jeepTimer <= 0) {
+                // 乘车或带球跑时吃翅膀无效
+                if (player.jeepTimer <= 0 && !(player.footballTimer > 0 && !player.footballKicked)) {
                     player.flyTimer = getWingsDuration();
                     player.vy = 0;
                 }
@@ -3165,6 +3366,12 @@
                     const launchDelaySeconds = i === 0 ? 0 : (currentDuration - ROCKET_FLIGHT_DURATION) / 60;
                     setTimeout(() => playRocketLaunchSound(0.7), launchDelaySeconds * 1000);
                 }
+            } else if (item.type === 'uav') {
+                if (drones.length < getUavMaxCount()) {
+                    const spawnX = player.x + player.width / 2;
+                    const spawnY = player.y;
+                    drones.push(new Drone(spawnX, spawnY));
+                }
             }
             item.collected = true;
             playItemSound();
@@ -3196,6 +3403,11 @@
             if (player.footballTimer > 0) {
                 const seconds = Math.ceil(player.footballTimer / 60);
                 powerupDisplay.innerHTML += `<div class="powerup-tag" style="color:#fff">⚽ 足球 ${seconds}s</div>`;
+            }
+            if (drones.length > 0) {
+                const activeTimers = drones.filter(d => d.state === 'active').map(d => d.timer);
+                const seconds = activeTimers.length > 0 ? Math.ceil(Math.min(...activeTimers) / 60) : 0;
+                powerupDisplay.innerHTML += `<div class="powerup-tag" style="color:#87ceeb">🚁 无人机 ${drones.length}/${getUavMaxCount()} ${seconds}s</div>`;
             }
         }
 
@@ -3330,6 +3542,41 @@
             player.vy = 0;
         }
 
+        // ===== 无人机攻击逻辑 =====
+        function updateDroneAttacks() {
+            const readyDrones = drones.filter(d => d.isReady()).sort((a, b) => a.cooldown - b.cooldown);
+            if (readyDrones.length === 0) return;
+
+            const px = player.x + player.width / 2;
+            const py = player.y + player.height / 2;
+
+            for (const drone of readyDrones) {
+                let nearest = null;
+                let nearestDist = Infinity;
+                for (const monster of monsters) {
+                    if (monster.isKnocked) continue;
+                    // 只攻击已经进入屏幕的怪兽
+                    if (monster.x + monster.width <= 0 || monster.x >= GAME_WIDTH) continue;
+                    // 不攻击已经跑到玩家身后的怪兽（已跳过）
+                    if (monster.x + monster.width < player.x) continue;
+                    const mx = monster.x + monster.width / 2;
+                    const my = monster.y + monster.height / 2;
+                    const dx = mx - px;
+                    const dy = my - py;
+                    const dist = dx * dx + dy * dy;
+                    if (dist < nearestDist) {
+                        nearestDist = dist;
+                        nearest = monster;
+                    }
+                }
+                if (nearest) {
+                    drone.fireAt(nearest);
+                    knockMonster(nearest, 1, true);
+                    playUavLaserSound();
+                }
+            }
+        }
+
         // ===== 计分逻辑 =====
         function updateScore() {
             for (const monster of monsters) {
@@ -3444,6 +3691,17 @@
                 }
             }
 
+            // 更新和绘制无人机
+            for (let i = drones.length - 1; i >= 0; i--) {
+                const drone = drones[i];
+                drone.update();
+                drone.draw(ctx);
+                if (drone.shouldRemove()) {
+                    drones.splice(i, 1);
+                }
+            }
+            updateDroneAttacks();
+
             // 更新和绘制爆炸效果
             if (activeExplosion) {
                 activeExplosion.update();
@@ -3536,6 +3794,7 @@
                 droppingHammer = null;
                 activeRockets = [];
                 activeExplosion = null;
+                drones = [];
                 stopBGM();
             }
         }
@@ -3561,6 +3820,7 @@
             droppingHammer = null;
             activeRockets = [];
             activeExplosion = null;
+            drones = [];
 
             // 初始化场景系统
             currentScene = 'night';
