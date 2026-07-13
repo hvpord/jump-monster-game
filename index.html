@@ -338,6 +338,39 @@
             background: rgba(255,255,255,0.15);
             color: #bbb;
         }
+        /* ===== 暂停按钮 ===== */
+        .pause-btn {
+            position: absolute;
+            top: clamp(8px, 2vh, 15px);
+            right: clamp(170px, 24vw, 210px);
+            z-index: 11;
+            width: 40px;
+            height: 40px;
+            border: 2px solid rgba(255,255,255,0.15);
+            border-radius: 50%;
+            background: rgba(255,255,255,0.08);
+            color: #888;
+            font-size: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .pause-btn:hover {
+            border-color: rgba(255,255,255,0.3);
+            background: rgba(255,255,255,0.15);
+            color: #bbb;
+        }
+        .pause-btn.paused {
+            border-color: #e94560;
+            background: rgba(233,69,96,0.25);
+            color: #fff;
+            box-shadow: 0 0 15px rgba(233,69,96,0.3);
+        }
         /* ===== 网页全屏状态 ===== */
         #gameContainer.window-fullscreen {
             position: fixed !important;
@@ -371,6 +404,7 @@
         <!-- 音乐控制 -->
         <button id="musicBtn" class="music-btn" title="背景音乐开关">🎵</button>
         <button id="fullscreenBtn" class="fullscreen-btn" title="网页全屏">⛶</button>
+        <button id="pauseBtn" class="pause-btn" title="暂停 (P)">⏸</button>
 
         <!-- 开始界面 -->
         <div id="startScreen">
@@ -384,7 +418,7 @@
                 点击空格或者屏幕躲避怪兽
             </div>
            <button id="startBtn">开始游戏</button>
-           <div class="version">v1.9.6</div>
+           <div class="version">v1.9.7</div>
            <button id="resetHighScoreBtn" class="reset-highscore-btn">重置最高分</button>
         </div>
 
@@ -416,6 +450,7 @@
         const startBtn = document.getElementById('startBtn');
         const restartBtn = document.getElementById('restartBtn');
         const fullscreenBtn = document.getElementById('fullscreenBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
         const resetHighScoreBtn = document.getElementById('resetHighScoreBtn');
 
         // ===== 头像素材 =====
@@ -3702,8 +3737,46 @@
             });
         }
 
+        // ===== 暂停相关 =====
+        function drawPauseOverlay() {
+            ctx.save();
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+            ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 42px Microsoft YaHei, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+            ctx.shadowBlur = 10;
+            ctx.fillText('暂 停', GAME_WIDTH / 2, GAME_HEIGHT / 2 - 15);
+            ctx.font = '16px Microsoft YaHei, sans-serif';
+            ctx.fillText('按 P 或点击暂停按钮继续', GAME_WIDTH / 2, GAME_HEIGHT / 2 + 35);
+            ctx.restore();
+        }
+
+        function togglePause() {
+            if (gameState === 'playing') {
+                gameState = 'paused';
+                pauseBtn.classList.add('paused');
+                pauseBtn.textContent = '▶';
+                pauseBtn.title = '继续 (P)';
+                drawPauseOverlay();
+            } else if (gameState === 'paused') {
+                gameState = 'playing';
+                pauseBtn.classList.remove('paused');
+                pauseBtn.textContent = '⏸';
+                pauseBtn.title = '暂停 (P)';
+                requestAnimationFrame(gameLoop);
+            }
+        }
+
         // ===== 游戏主循环 =====
        function gameLoop() {
+           if (gameState === 'paused') {
+               drawPauseOverlay();
+               requestAnimationFrame(gameLoop);
+               return;
+           }
            if (gameState !== 'playing') return;
             try {
 
@@ -3947,6 +4020,9 @@
             scoreDisplay.textContent = '得分: 0';
             speedDisplay.textContent = '速度: 1.0x';
             powerupDisplay.innerHTML = '';
+            pauseBtn.classList.remove('paused');
+            pauseBtn.textContent = '⏸';
+            pauseBtn.title = '暂停 (P)';
             startScreen.classList.add('hidden');
             gameOverScreen.style.display = 'none';
             enterWindowFullscreen();
@@ -3970,6 +4046,9 @@
             finalScoreEl.textContent = score;
             highScoreEl.textContent = highScore;
            gameOverScreen.style.display = 'flex';
+            pauseBtn.classList.remove('paused');
+            pauseBtn.textContent = '⏸';
+            pauseBtn.title = '暂停 (P)';
             // 停止背景音乐
             stopBGM();
         }
@@ -4215,6 +4294,11 @@
                 } else if (gameState === 'gameover') {
                     startGame();
                 }
+            } else if (e.code === 'KeyP') {
+                e.preventDefault();
+                if (gameState === 'playing' || gameState === 'paused') {
+                    togglePause();
+                }
             }
         });
 
@@ -4237,6 +4321,7 @@
        restartBtn.addEventListener('click', startGame);
         document.getElementById('musicBtn').addEventListener('click', toggleBGM);
         fullscreenBtn.addEventListener('click', toggleWindowFullscreen);
+        pauseBtn.addEventListener('click', togglePause);
         resetHighScoreBtn.addEventListener('click', () => {
             highScore = 0;
             localStorage.removeItem('monsterJumpHighScore');
