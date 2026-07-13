@@ -384,7 +384,7 @@
                 点击空格或者屏幕躲避怪兽
             </div>
            <button id="startBtn">开始游戏</button>
-           <div class="version">v1.9.3</div>
+           <div class="version">v1.9.4</div>
            <button id="resetHighScoreBtn" class="reset-highscore-btn">重置最高分</button>
         </div>
 
@@ -3342,9 +3342,15 @@
                 player.skillBooks++;
             } else if (item.type === 'hammer') {
                 player.invincibleTimer = getHammerDuration();
-                const freshHits = getHammerHits();
-                const combinedHits = player.hammerHits + player.skillBooks;
-                player.hammerHits = Math.max(freshHits, combinedHits);
+                if (player.hammerHits > 0) {
+                    // 已持有锤子时，取重置数量和剩余+技能书数量的较大值，防止浪费
+                    const freshHits = getHammerHits();
+                    const combinedHits = player.hammerHits + player.skillBooks;
+                    player.hammerHits = Math.max(freshHits, combinedHits);
+                } else {
+                    // 锤子已消失（次数或时间耗尽），重新吃到时重置
+                    player.hammerHits = getHammerHits();
+                }
                 droppingHammer = null;
             } else if (item.type === 'wings') {
                 // 乘车或带球跑时吃翅膀无效
