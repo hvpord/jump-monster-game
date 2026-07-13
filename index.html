@@ -384,7 +384,7 @@
                 点击空格或者屏幕躲避怪兽
             </div>
            <button id="startBtn">开始游戏</button>
-           <div class="version">v1.9.1</div>
+           <div class="version">v1.9.2</div>
            <button id="resetHighScoreBtn" class="reset-highscore-btn">重置最高分</button>
         </div>
 
@@ -512,6 +512,10 @@
         const UAV_LASER_DURATION = 12;         // 激光显示帧数
         const UAV_SPAWN_FLY_FRAMES = 30;       // 从角色头顶飞出的帧数
 
+        const JEEP_SHIELD_BASE_MAX_LAYERS = 1; // 吉普车盾牌基础叠加层数
+        const JEEP_SHIELD_SKILL_STEP = 5;      // 每 5 本技能书增加一层
+        const JEEP_SHIELD_HIT_FLASH = 12;      // 受击闪光帧数
+
         // ===== 技能书加成后的道具数值 =====
         function getHammerDuration() { return INVINCIBLE_DURATION + player.skillBooks * 60; }
         function getHammerHits() { return HAMMER_HITS + player.skillBooks; }
@@ -526,6 +530,10 @@
 
         function getUavFireInterval() {
             return Math.max(30, UAV_FIRE_INTERVAL - player.skillBooks * UAV_SKILL_INTERVAL_REDUCTION);
+        }
+
+        function getJeepShieldMaxLayers() {
+            return JEEP_SHIELD_BASE_MAX_LAYERS + Math.floor(player.skillBooks / JEEP_SHIELD_SKILL_STEP);
         }
 
         const SCENES = [
@@ -607,7 +615,9 @@
             footballVY: 0,
             isDead: false,
             deathTimer: 0,
-            deathRotation: 0
+            deathRotation: 0,
+            jeepShieldLayers: 0,
+            jeepShieldHitFlash: 0
         };
 
         // ===== 怪兽、道具、投射物数组 =====
@@ -2188,6 +2198,7 @@
 
             if (player.invincibleTimer > 0) player.invincibleTimer--;
             if (player.shieldTimer > 0) player.shieldTimer--;
+            if (player.jeepShieldHitFlash > 0) player.jeepShieldHitFlash--;
 
             // 锤子持续时间到，掉落消失
             if (player.invincibleTimer <= 0 && player.hammerHits > 0) {
@@ -2328,6 +2339,59 @@
                         }
                     }
                 }
+
+                // 吉普车前方护盾效果
+                if (player.jeepShieldLayers > 0) {
+                    const shieldCx = jeepX + jeepW;
+                    const shieldCy = jeepY + jeepH / 2 + bounce;
+                    const shieldR = jeepH / 2 + 4;
+                    const layerRatio = player.jeepShieldLayers / getJeepShieldMaxLayers();
+                    const flash = player.jeepShieldHitFlash > 0 ? 0.4 + 0.6 * (player.jeepShieldHitFlash / JEEP_SHIELD_HIT_FLASH) : 0;
+
+                    ctx.save();
+                    ctx.globalAlpha = 0.35 + 0.35 * layerRatio + flash * 0.3;
+
+                    // 外发光
+                    const grad = ctx.createRadialGradient(shieldCx, shieldCy, shieldR * 0.5, shieldCx, shieldCy, shieldR * 1.6);
+                    grad.addColorStop(0, `rgba(100, 200, 255, ${0.4 + flash * 0.4})`);
+                    grad.addColorStop(1, 'rgba(50, 120, 220, 0)');
+                    ctx.fillStyle = grad;
+                    ctx.beginPath();
+                    ctx.arc(shieldCx, shieldCy, shieldR * 1.6, -Math.PI / 2, Math.PI / 2);
+                    ctx.lineTo(shieldCx, shieldCy - shieldR * 1.6);
+                    ctx.closePath();
+                    ctx.fill();
+
+                    // 弧形护盾主体
+                    ctx.strokeStyle = `rgba(120, 220, 255, ${0.8 + flash * 0.2})`;
+                    ctx.lineWidth = 4;
+                    ctx.lineCap = 'round';
+                    ctx.shadowColor = '#3498db';
+                    ctx.shadowBlur = 16 + flash * 16;
+                    ctx.beginPath();
+                    ctx.arc(shieldCx, shieldCy, shieldR, -Math.PI / 2, Math.PI / 2);
+                    ctx.stroke();
+
+                    // 内部填充
+                    ctx.fillStyle = `rgba(80, 180, 255, ${0.15 + layerRatio * 0.15 + flash * 0.2})`;
+                    ctx.beginPath();
+                    ctx.arc(shieldCx, shieldCy, shieldR, -Math.PI / 2, Math.PI / 2);
+                    ctx.lineTo(shieldCx, shieldCy - shieldR);
+                    ctx.closePath();
+                    ctx.fill();
+
+                    // 层数小圆点
+                    const dotY = shieldCy - shieldR - 10;
+                    for (let i = 0; i < player.jeepShieldLayers; i++) {
+                        ctx.fillStyle = `rgba(150, 230, 255, ${0.9 + flash * 0.1})`;
+                        ctx.beginPath();
+                        ctx.arc(shieldCx + 8, dotY + i * 12, 3, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+
+                    ctx.restore();
+                }
+
                 ctx.restore();
                 return;
             }
@@ -3301,7 +3365,15 @@
                     player.vy = 0;
                 }
             } else if (item.type === 'shield') {
-                player.shieldTimer = getShieldDuration();
+                if (player.jeepTimer > 0) {
+                    // 开车时吃盾牌：叠加吉普车前方护盾
+                    const maxLayers = getJeepShieldMaxLayers();
+                    if (player.jeepShieldLayers < maxLayers) {
+                        player.jeepShieldLayers++;
+                    }
+                } else {
+                    player.shieldTimer = getShieldDuration();
+                }
             } else if (item.type === 'stone') {
                 projectiles.push(new StoneProjectile(player.x + player.width, player.y + player.height / 2));
             } else if (item.type === 'jeep') {
@@ -3400,6 +3472,9 @@
             if (player.jeepTimer > 0) {
                 powerupDisplay.innerHTML += `<div class="powerup-tag" style="color:#2ecc71">🚙 吉普车 ${player.jeepAmmo}发</div>`;
             }
+            if (player.jeepShieldLayers > 0) {
+                powerupDisplay.innerHTML += `<div class="powerup-tag" style="color:#87ceeb">🛡️ 车载护盾 ${player.jeepShieldLayers}/${getJeepShieldMaxLayers()}</div>`;
+            }
             if (player.footballTimer > 0) {
                 const seconds = Math.ceil(player.footballTimer / 60);
                 powerupDisplay.innerHTML += `<div class="powerup-tag" style="color:#fff">⚽ 足球 ${seconds}s</div>`;
@@ -3473,6 +3548,12 @@
                         if (player.hammerHits <= 0) {
                             dropHammer();
                         }
+                    } else if (player.jeepTimer > 0 && player.jeepShieldLayers > 0) {
+                        // 吉普车前方护盾抵消一次撞击
+                        knockMonster(monster, 1);
+                        player.jeepShieldLayers--;
+                        player.jeepShieldHitFlash = JEEP_SHIELD_HIT_FLASH;
+                        playKnockSound();
                     } else if (player.jeepTimer > 0) {
                         // 吉普车被撞飞，怪兽也被撞飞，人活着
                         knockMonster(monster, 1);
@@ -3795,6 +3876,8 @@
                 activeRockets = [];
                 activeExplosion = null;
                 drones = [];
+                player.jeepShieldLayers = 0;
+                player.jeepShieldHitFlash = 0;
                 stopBGM();
             }
         }
@@ -3857,6 +3940,8 @@
             player.isDead = false;
             player.deathTimer = 0;
             player.deathRotation = 0;
+            player.jeepShieldLayers = 0;
+            player.jeepShieldHitFlash = 0;
 
             pickAvatars();
             initAudio();
