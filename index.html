@@ -384,7 +384,7 @@
                 点击空格或者屏幕躲避怪兽
             </div>
            <button id="startBtn">开始游戏</button>
-           <div class="version">v1.9.5</div>
+           <div class="version">v1.9.6</div>
            <button id="resetHighScoreBtn" class="reset-highscore-btn">重置最高分</button>
         </div>
 
@@ -483,7 +483,6 @@
 
         const SPAWN_INTERVAL_MIN = 120;
         const SPAWN_INTERVAL_MAX = 240;
-        const DENSITY_INCREMENT = 0.1;  // 每10分怪物密度线性增长10%
 
         const COLLISION_MARGIN_X = 8;
         const COLLISION_MARGIN_Y = 10;
@@ -2128,10 +2127,12 @@
             speedDisplay.textContent = `速度: ${speedMultiplier.toFixed(1)}x`;
         }
 
-        // ===== 获取当前怪兽生成间隔倍数（线性密度：每10分密度+10%，间隔缩短） =====
+        // ===== 获取当前怪兽生成间隔倍数（300分后每100分密度+10%，线性） =====
         function getSpawnIntervalMultiplier() {
-            const level = Math.floor(score / 10);
-            return 1 / (1 + DENSITY_INCREMENT * level);
+            if (score <= 300) return 1.0;
+            const steps = Math.floor((score - 300) / 100);
+            const density = 1 + 0.10 * steps;
+            return 1 / density;
         }
 
         // ===== 角色跳跃 =====
