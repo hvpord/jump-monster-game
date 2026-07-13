@@ -418,7 +418,7 @@
                 点击空格或者屏幕躲避怪兽
             </div>
            <button id="startBtn">开始游戏</button>
-           <div class="version">v1.9.8</div>
+           <div class="version">v1.9.9</div>
            <button id="resetHighScoreBtn" class="reset-highscore-btn">重置最高分</button>
         </div>
 
@@ -549,6 +549,7 @@
         const JEEP_SHIELD_BASE_MAX_LAYERS = 1; // 吉普车盾牌基础叠加层数
         const JEEP_SHIELD_SKILL_STEP = 5;      // 每 5 本技能书增加一层
         const JEEP_SHIELD_HIT_FLASH = 12;      // 受击闪光帧数
+        const EXPIRE_BLINK_FRAMES = 3 * 60;    // 道具消失前 3 秒开始闪烁
 
         // ===== 技能书加成后的道具数值 =====
         function getHammerDuration() { return INVINCIBLE_DURATION + player.skillBooks * 60; }
@@ -2513,6 +2514,8 @@
             if (!player.footballKicked && player.footballX + 60 > 0) {
                 ctx.save();
                 const ballSize = 56;
+                const isBlinking = player.footballTimer > 0 && player.footballTimer <= EXPIRE_BLINK_FRAMES;
+                ctx.globalAlpha = isBlinking ? 0.4 + 0.6 * Math.abs(Math.sin(frameCount * 0.3)) : 1;
                 ctx.translate(player.footballX + ballSize / 2, player.footballY + ballSize / 2);
                 ctx.rotate(frameCount * 0.25);
                 if (footballImg.complete && footballImg.naturalWidth > 0) {
@@ -2535,6 +2538,8 @@
             // 手持锤子挥舞效果
             if (player.hammerHits > 0 && player.jeepTimer <= 0) {
                 ctx.save();
+                const isBlinking = player.invincibleTimer > 0 && player.invincibleTimer <= EXPIRE_BLINK_FRAMES;
+                ctx.globalAlpha = isBlinking ? 0.4 + 0.6 * Math.abs(Math.sin(frameCount * 0.3)) : 1;
                 const handXAbs = cx + handX;
                 const handYAbs = cy + rightHandY;
                 ctx.translate(handXAbs, handYAbs);
@@ -2564,6 +2569,8 @@
             // 手持盾牌效果（挡在身前）
             if (player.shieldTimer > 0) {
                 ctx.save();
+                const isBlinking = player.shieldTimer <= EXPIRE_BLINK_FRAMES;
+                ctx.globalAlpha = isBlinking ? 0.4 + 0.6 * Math.abs(Math.sin(frameCount * 0.3)) : 1;
                 const shieldX = cx + handX + 6;
                 const shieldY = cy + rightHandY;
                 ctx.translate(shieldX, shieldY);
