@@ -384,7 +384,7 @@
                 点击空格或者屏幕躲避怪兽
             </div>
            <button id="startBtn">开始游戏</button>
-           <div class="version">v1.9.2</div>
+           <div class="version">v1.9.3</div>
            <button id="resetHighScoreBtn" class="reset-highscore-btn">重置最高分</button>
         </div>
 
@@ -2342,53 +2342,41 @@
 
                 // 吉普车前方护盾效果
                 if (player.jeepShieldLayers > 0) {
-                    const shieldCx = jeepX + jeepW;
-                    const shieldCy = jeepY + jeepH / 2 + bounce;
-                    const shieldR = jeepH / 2 + 4;
-                    const layerRatio = player.jeepShieldLayers / getJeepShieldMaxLayers();
+                    const shieldH = jeepH * 0.8;
+                    const shieldR = shieldH / 2 + 4;
+                    const spacing = shieldR * 1.1;
+                    const baseCx = jeepX + jeepW;
+                    const baseCy = jeepY + jeepH / 2 + bounce;
                     const flash = player.jeepShieldHitFlash > 0 ? 0.4 + 0.6 * (player.jeepShieldHitFlash / JEEP_SHIELD_HIT_FLASH) : 0;
 
                     ctx.save();
-                    ctx.globalAlpha = 0.35 + 0.35 * layerRatio + flash * 0.3;
-
-                    // 外发光
-                    const grad = ctx.createRadialGradient(shieldCx, shieldCy, shieldR * 0.5, shieldCx, shieldCy, shieldR * 1.6);
-                    grad.addColorStop(0, `rgba(100, 200, 255, ${0.4 + flash * 0.4})`);
-                    grad.addColorStop(1, 'rgba(50, 120, 220, 0)');
-                    ctx.fillStyle = grad;
-                    ctx.beginPath();
-                    ctx.arc(shieldCx, shieldCy, shieldR * 1.6, -Math.PI / 2, Math.PI / 2);
-                    ctx.lineTo(shieldCx, shieldCy - shieldR * 1.6);
-                    ctx.closePath();
-                    ctx.fill();
-
-                    // 弧形护盾主体
-                    ctx.strokeStyle = `rgba(120, 220, 255, ${0.8 + flash * 0.2})`;
-                    ctx.lineWidth = 4;
-                    ctx.lineCap = 'round';
-                    ctx.shadowColor = '#3498db';
-                    ctx.shadowBlur = 16 + flash * 16;
-                    ctx.beginPath();
-                    ctx.arc(shieldCx, shieldCy, shieldR, -Math.PI / 2, Math.PI / 2);
-                    ctx.stroke();
-
-                    // 内部填充
-                    ctx.fillStyle = `rgba(80, 180, 255, ${0.15 + layerRatio * 0.15 + flash * 0.2})`;
-                    ctx.beginPath();
-                    ctx.arc(shieldCx, shieldCy, shieldR, -Math.PI / 2, Math.PI / 2);
-                    ctx.lineTo(shieldCx, shieldCy - shieldR);
-                    ctx.closePath();
-                    ctx.fill();
-
-                    // 层数小圆点
-                    const dotY = shieldCy - shieldR - 10;
                     for (let i = 0; i < player.jeepShieldLayers; i++) {
-                        ctx.fillStyle = `rgba(150, 230, 255, ${0.9 + flash * 0.1})`;
-                        ctx.beginPath();
-                        ctx.arc(shieldCx + 8, dotY + i * 12, 3, 0, Math.PI * 2);
-                        ctx.fill();
-                    }
+                        const cx = baseCx + i * spacing;
+                        const cy = baseCy;
 
+                        // 外发光
+                        const grad = ctx.createRadialGradient(cx, cy, shieldR * 0.5, cx, cy, shieldR * 1.6);
+                        grad.addColorStop(0, `rgba(100, 200, 255, ${0.35 + flash * 0.35})`);
+                        grad.addColorStop(1, 'rgba(50, 120, 220, 0)');
+                        ctx.fillStyle = grad;
+                        ctx.globalAlpha = 0.6 + flash * 0.3;
+                        ctx.beginPath();
+                        ctx.arc(cx, cy, shieldR * 1.6, -Math.PI / 2, Math.PI / 2);
+                        ctx.lineTo(cx, cy - shieldR * 1.6);
+                        ctx.closePath();
+                        ctx.fill();
+
+                        // 弧形护盾边框
+                        ctx.strokeStyle = `rgba(120, 220, 255, ${0.85 + flash * 0.15})`;
+                        ctx.lineWidth = 3;
+                        ctx.lineCap = 'round';
+                        ctx.shadowColor = '#3498db';
+                        ctx.shadowBlur = 12 + flash * 12;
+                        ctx.globalAlpha = 0.9 + flash * 0.1;
+                        ctx.beginPath();
+                        ctx.arc(cx, cy, shieldR, -Math.PI / 2, Math.PI / 2);
+                        ctx.stroke();
+                    }
                     ctx.restore();
                 }
 
