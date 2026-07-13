@@ -418,7 +418,7 @@
                 点击空格或者屏幕躲避怪兽
             </div>
            <button id="startBtn">开始游戏</button>
-           <div class="version">v1.9.7</div>
+           <div class="version">v1.9.8</div>
            <button id="resetHighScoreBtn" class="reset-highscore-btn">重置最高分</button>
         </div>
 
@@ -3774,7 +3774,6 @@
        function gameLoop() {
            if (gameState === 'paused') {
                drawPauseOverlay();
-               requestAnimationFrame(gameLoop);
                return;
            }
            if (gameState !== 'playing') return;
