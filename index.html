@@ -384,7 +384,7 @@
                 点击空格或者屏幕躲避怪兽
             </div>
            <button id="startBtn">开始游戏</button>
-           <div class="version">v1.9.4</div>
+           <div class="version">v1.9.5</div>
            <button id="resetHighScoreBtn" class="reset-highscore-btn">重置最高分</button>
         </div>
 
@@ -2344,7 +2344,7 @@
                 if (player.jeepShieldLayers > 0) {
                     const shieldH = jeepH * 0.8;
                     const shieldR = shieldH / 2 + 4;
-                    const spacing = shieldR * 1.1;
+                    const spacing = shieldR * 0.65;
                     const baseCx = jeepX + jeepW;
                     const baseCy = jeepY + jeepH / 2 + bounce;
                     const flash = player.jeepShieldHitFlash > 0 ? 0.4 + 0.6 * (player.jeepShieldHitFlash / JEEP_SHIELD_HIT_FLASH) : 0;
@@ -2354,25 +2354,28 @@
                         const cx = baseCx + i * spacing;
                         const cy = baseCy;
 
-                        // 外发光
-                        const grad = ctx.createRadialGradient(cx, cy, shieldR * 0.5, cx, cy, shieldR * 1.6);
-                        grad.addColorStop(0, `rgba(100, 200, 255, ${0.35 + flash * 0.35})`);
-                        grad.addColorStop(1, 'rgba(50, 120, 220, 0)');
+                        // 外发光：从左到右由完全透明渐变到不透明
+                        const grad = ctx.createLinearGradient(cx - shieldR, cy, cx + shieldR * 1.6, cy);
+                        grad.addColorStop(0, 'rgba(100, 200, 255, 0)');
+                        grad.addColorStop(1, `rgba(100, 200, 255, ${0.45 + flash * 0.35})`);
                         ctx.fillStyle = grad;
-                        ctx.globalAlpha = 0.6 + flash * 0.3;
+                        ctx.globalAlpha = 0.7 + flash * 0.2;
                         ctx.beginPath();
                         ctx.arc(cx, cy, shieldR * 1.6, -Math.PI / 2, Math.PI / 2);
                         ctx.lineTo(cx, cy - shieldR * 1.6);
                         ctx.closePath();
                         ctx.fill();
 
-                        // 弧形护盾边框
-                        ctx.strokeStyle = `rgba(120, 220, 255, ${0.85 + flash * 0.15})`;
+                        // 弧形护盾边框：左侧淡、右侧实
+                        const strokeGrad = ctx.createLinearGradient(cx - shieldR, cy, cx + shieldR, cy);
+                        strokeGrad.addColorStop(0, 'rgba(120, 220, 255, 0.15)');
+                        strokeGrad.addColorStop(1, `rgba(120, 220, 255, ${0.9 + flash * 0.1})`);
+                        ctx.strokeStyle = strokeGrad;
                         ctx.lineWidth = 3;
                         ctx.lineCap = 'round';
                         ctx.shadowColor = '#3498db';
                         ctx.shadowBlur = 12 + flash * 12;
-                        ctx.globalAlpha = 0.9 + flash * 0.1;
+                        ctx.globalAlpha = 0.95 + flash * 0.05;
                         ctx.beginPath();
                         ctx.arc(cx, cy, shieldR, -Math.PI / 2, Math.PI / 2);
                         ctx.stroke();
