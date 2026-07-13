@@ -418,7 +418,7 @@
                 点击空格或者屏幕躲避怪兽
             </div>
            <button id="startBtn">开始游戏</button>
-           <div class="version">v1.9.10</div>
+           <div class="version">v1.9.11</div>
            <button id="resetHighScoreBtn" class="reset-highscore-btn">重置最高分</button>
         </div>
 
@@ -542,7 +542,6 @@
         const UAV_DURATION = 60 * 60;          // 无人机持续 60 秒
         const UAV_BASE_MAX_COUNT = 3;          // 最多积累 3 架
         const UAV_FIRE_INTERVAL = 5 * 60;      // 基础发射间隔 5 秒
-        const UAV_SKILL_INTERVAL_REDUCTION = 0.3 * 60; // 每本技能书减少 0.3 秒
         const UAV_SKILL_MAX_COUNT_STEP = 3;    // 每 3 本技能书上限 +1
         const UAV_LASER_DURATION = 12;         // 激光显示帧数
         const UAV_SPAWN_FLY_FRAMES = 30;       // 从角色头顶飞出的帧数
@@ -565,7 +564,8 @@
         }
 
         function getUavFireInterval() {
-            return Math.max(30, UAV_FIRE_INTERVAL - player.skillBooks * UAV_SKILL_INTERVAL_REDUCTION);
+            // 每吃一本技能书，攻击间隔缩短 4%（乘法递减），最低 0.5 秒
+            return Math.max(30, Math.round(UAV_FIRE_INTERVAL * Math.pow(0.96, player.skillBooks)));
         }
 
         function getJeepShieldMaxLayers() {
