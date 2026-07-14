@@ -431,7 +431,7 @@
                 点击空格或者屏幕躲避怪兽
             </div>
            <button id="startBtn">开始游戏</button>
-           <div class="version">v1.9.16</div>
+           <div class="version">v1.9.17</div>
            <button id="resetHighScoreBtn" class="reset-highscore-btn">重置最高分</button>
         </div>
 
@@ -537,8 +537,8 @@
         const COLLISION_MARGIN_X = 8;
         const COLLISION_MARGIN_Y = 10;
 
-        const ITEM_SPAWN_INTERVAL_MIN = 300;
-        const ITEM_SPAWN_INTERVAL_MAX = 600;
+        const ITEM_SPAWN_INTERVAL_MIN = 300;   // 基础 5 秒
+        const ITEM_SPAWN_INTERVAL_MAX = 720;   // 基础 12 秒
         const FLYING_MONSTER_SPAWN_MIN = 600;
         const FLYING_MONSTER_SPAWN_MAX = 1200;
         const INVINCIBLE_DURATION = 600;
@@ -2163,11 +2163,11 @@
             return MONSTER_SPEED_BASE * (1.0 + 0.1 * level);
         }
 
-        // ===== 获取下一次道具生成间隔（每20分缩短1秒，保留随机范围） =====
+        // ===== 获取下一次道具生成间隔（每100分缩短1秒，保留随机范围） =====
         function getNextItemSpawnTime() {
-            const reduction = Math.floor(score / 20) * 60; // 每20分减少1秒（60帧）
-            const min = Math.max(120, ITEM_SPAWN_INTERVAL_MIN - reduction);
-            const max = Math.max(min + 120, ITEM_SPAWN_INTERVAL_MAX - reduction);
+            const reduction = Math.floor(score / 100) * 60; // 每100分减少1秒（60帧）
+            const min = Math.max(120, ITEM_SPAWN_INTERVAL_MIN - reduction); // 下限 2 秒
+            const max = Math.max(240, ITEM_SPAWN_INTERVAL_MAX - reduction); // 上限不低于 4 秒
             return min + Math.random() * (max - min);
         }
 
