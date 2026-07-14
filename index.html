@@ -431,7 +431,7 @@
                 点击空格或者屏幕躲避怪兽
             </div>
            <button id="startBtn">开始游戏</button>
-           <div class="version">v1.9.17</div>
+           <div class="version">v1.9.18</div>
            <button id="resetHighScoreBtn" class="reset-highscore-btn">重置最高分</button>
         </div>
 
@@ -3697,10 +3697,10 @@
                 let nearestDist = Infinity;
                 for (const monster of monsters) {
                     if (monster.isKnocked) continue;
-                    // 只攻击已经进入屏幕的怪兽
-                    if (monster.x + monster.width <= 0 || monster.x >= GAME_WIDTH) continue;
-                    // 不攻击已经跑到玩家身后的怪兽（已跳过）
-                    if (monster.x + monster.width < player.x) continue;
+                    // 只攻击已经完全进入屏幕的怪兽（任何部分在屏幕外都排除）
+                    if (monster.x < 0 || monster.x + monster.width > GAME_WIDTH) continue;
+                    // 只攻击位于玩家前方的怪兽（怪物右边缘超过玩家右边缘）
+                    if (monster.x + monster.width <= player.x + player.width) continue;
                     const mx = monster.x + monster.width / 2;
                     const my = monster.y + monster.height / 2;
                     const dx = mx - px;
