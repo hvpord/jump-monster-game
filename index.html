@@ -239,6 +239,18 @@
             text-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
         }
 
+        /* ===== 密度显示 ===== */
+        #densityDisplay {
+            position: absolute;
+            top: clamp(58px, 9vh, 72px);
+            right: clamp(10px, 2.5vw, 20px);
+            font-size: clamp(12px, 3vw, 18px);
+            color: #e94560;
+            font-weight: bold;
+            z-index: 5;
+            text-shadow: 0 0 8px rgba(233, 69, 96, 0.4);
+        }
+
         /* ===== 道具状态显示 ===== */
         #powerupDisplay {
             position: absolute;
@@ -398,6 +410,7 @@
         <!-- 分数显示 -->
         <div id="scoreDisplay">得分: 0</div>
         <div id="speedDisplay">速度: 1.0x</div>
+        <div id="densityDisplay">密度: 1.00x</div>
 
         <!-- 道具状态显示 -->
        <div id="powerupDisplay"></div>
@@ -418,7 +431,7 @@
                 点击空格或者屏幕躲避怪兽
             </div>
            <button id="startBtn">开始游戏</button>
-           <div class="version">v1.9.10</div>
+           <div class="version">v1.9.15</div>
            <button id="resetHighScoreBtn" class="reset-highscore-btn">重置最高分</button>
         </div>
 
@@ -444,6 +457,7 @@
         const gameOverScreen = document.getElementById('gameOverScreen');
         const scoreDisplay = document.getElementById('scoreDisplay');
         const speedDisplay = document.getElementById('speedDisplay');
+        const densityDisplay = document.getElementById('densityDisplay');
         const powerupDisplay = document.getElementById('powerupDisplay');
         const finalScoreEl = document.getElementById('finalScore');
         const highScoreEl = document.getElementById('highScore');
@@ -518,7 +532,7 @@
 
         const SPAWN_INTERVAL_MIN = 120;
         const SPAWN_INTERVAL_MAX = 240;
-        const DENSITY_INCREMENT = 0.1;  // 每10分怪物密度线性增长10%
+        const DENSITY_GROWTH_RATE = 0.03;  // 每10分怪物密度在当前基础上增长3%（指数）
 
         const COLLISION_MARGIN_X = 8;
         const COLLISION_MARGIN_Y = 10;
@@ -542,7 +556,6 @@
         const UAV_DURATION = 60 * 60;          // 无人机持续 60 秒
         const UAV_BASE_MAX_COUNT = 3;          // 最多积累 3 架
         const UAV_FIRE_INTERVAL = 5 * 60;      // 基础发射间隔 5 秒
-        const UAV_SKILL_INTERVAL_REDUCTION = 0.3 * 60; // 每本技能书减少 0.3 秒
         const UAV_SKILL_MAX_COUNT_STEP = 3;    // 每 3 本技能书上限 +1
         const UAV_LASER_DURATION = 12;         // 激光显示帧数
         const UAV_SPAWN_FLY_FRAMES = 30;       // 从角色头顶飞出的帧数
@@ -565,7 +578,8 @@
         }
 
         function getUavFireInterval() {
-            return Math.max(30, UAV_FIRE_INTERVAL - player.skillBooks * UAV_SKILL_INTERVAL_REDUCTION);
+            // 每吃一本技能书，攻击间隔缩短 3%（乘法递减），最低 0.5 秒
+            return Math.max(30, Math.round(UAV_FIRE_INTERVAL * Math.pow(0.97, player.skillBooks)));
         }
 
         function getJeepShieldMaxLayers() {
@@ -622,7 +636,7 @@
         let trainX = -300;
         let railwayMountainOffset = 0;
         let skillBookSpawnTimer = 0;
-        let nextSkillBookSpawnTime = 30 * 60 + Math.floor(Math.random() * 20 * 60); // 30-50秒
+        let nextSkillBookSpawnTime = 60 * 60 + Math.floor(Math.random() * 40 * 60); // 60-100秒
 
         // ===== 角色对象 =====
         const player = {
@@ -2055,7 +2069,7 @@
 
             if (lastMonster) {
                 const distance = SPAWN_MARGIN_RIGHT - lastMonster.x;
-                if (distance < MIN_GAP_BETWEEN_MONSTERS) {
+                if (distance < getCurrentMinGap()) {
                     return;
                 }
             }
@@ -2080,7 +2094,7 @@
 
             if (type === 'combo') {
                 const comboCount = Math.random() < 0.5 ? 2 : 3;
-                const gap = COMBO_GAP_MIN + Math.random() * (COMBO_GAP_MAX - COMBO_GAP_MIN);
+                const gap = getCurrentMinGap() * (0.8 + Math.random() * 0.6);
                 for (let i = 0; i < comboCount; i++) {
                     const x = SPAWN_MARGIN_RIGHT + i * gap;
                     monsters.push(new Monster('normal', x, currentSpeed));
@@ -2162,12 +2176,20 @@
             scoreDisplay.textContent = `得分: ${score}`;
             const speedMultiplier = getCurrentMonsterSpeed() / MONSTER_SPEED_BASE;
             speedDisplay.textContent = `速度: ${speedMultiplier.toFixed(1)}x`;
+            const densityMultiplier = 1 / getSpawnIntervalMultiplier();
+            densityDisplay.textContent = `密度: ${densityMultiplier.toFixed(2)}x`;
         }
 
-        // ===== 获取当前怪兽生成间隔倍数（线性密度：每10分密度+10%，间隔缩短） =====
+        // ===== 获取当前怪兽生成间隔倍数（指数密度：每10分密度在当前基础上+3%） =====
         function getSpawnIntervalMultiplier() {
             const level = Math.floor(score / 10);
-            return 1 / (1 + DENSITY_INCREMENT * level);
+            return 1 / Math.pow(1 + DENSITY_GROWTH_RATE, level);
+        }
+
+        // ===== 获取当前最小怪物间距（随密度增加而缩小，无下限，实际体验后调优） =====
+        function getCurrentMinGap() {
+            const density = 1 / getSpawnIntervalMultiplier();
+            return Math.round(MIN_GAP_BETWEEN_MONSTERS / Math.sqrt(density));
         }
 
         // ===== 角色跳跃 =====
@@ -3811,7 +3833,7 @@
             if (skillBookSpawnTimer >= nextSkillBookSpawnTime) {
                 items.push(new Item('skillbook', GAME_WIDTH + 50));
                 skillBookSpawnTimer = 0;
-                nextSkillBookSpawnTime = 30 * 60 + Math.floor(Math.random() * 20 * 60);
+                nextSkillBookSpawnTime = 60 * 60 + Math.floor(Math.random() * 40 * 60); // 60-100秒
             }
 
             // 生成飞行怪兽
@@ -3969,7 +3991,7 @@
             itemSpawnTimer = 0;
             nextItemSpawnTime = getNextItemSpawnTime();
             skillBookSpawnTimer = 0;
-            nextSkillBookSpawnTime = 30 * 60 + Math.floor(Math.random() * 20 * 60);
+            nextSkillBookSpawnTime = 60 * 60 + Math.floor(Math.random() * 40 * 60); // 60-100秒
             flyingSpawnTimer = 0;
             nextFlyingSpawnTime = FLYING_MONSTER_SPAWN_MIN + Math.random() * (FLYING_MONSTER_SPAWN_MAX - FLYING_MONSTER_SPAWN_MIN);
             monsters = [];
@@ -4024,6 +4046,7 @@
 
             scoreDisplay.textContent = '得分: 0';
             speedDisplay.textContent = '速度: 1.0x';
+            densityDisplay.textContent = '密度: 1.00x';
             powerupDisplay.innerHTML = '';
             pauseBtn.classList.remove('paused');
             pauseBtn.textContent = '⏸';
