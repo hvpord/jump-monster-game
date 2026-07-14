@@ -431,7 +431,7 @@
                 点击空格或者屏幕躲避怪兽
             </div>
            <button id="startBtn">开始游戏</button>
-           <div class="version">v1.9.14</div>
+           <div class="version">v1.9.15</div>
            <button id="resetHighScoreBtn" class="reset-highscore-btn">重置最高分</button>
         </div>
 
@@ -636,7 +636,7 @@
         let trainX = -300;
         let railwayMountainOffset = 0;
         let skillBookSpawnTimer = 0;
-        let nextSkillBookSpawnTime = 30 * 60 + Math.floor(Math.random() * 20 * 60); // 30-50秒
+        let nextSkillBookSpawnTime = 60 * 60 + Math.floor(Math.random() * 40 * 60); // 60-100秒
 
         // ===== 角色对象 =====
         const player = {
@@ -3833,7 +3833,7 @@
             if (skillBookSpawnTimer >= nextSkillBookSpawnTime) {
                 items.push(new Item('skillbook', GAME_WIDTH + 50));
                 skillBookSpawnTimer = 0;
-                nextSkillBookSpawnTime = 30 * 60 + Math.floor(Math.random() * 20 * 60);
+                nextSkillBookSpawnTime = 60 * 60 + Math.floor(Math.random() * 40 * 60); // 60-100秒
             }
 
             // 生成飞行怪兽
@@ -3991,7 +3991,7 @@
             itemSpawnTimer = 0;
             nextItemSpawnTime = getNextItemSpawnTime();
             skillBookSpawnTimer = 0;
-            nextSkillBookSpawnTime = 30 * 60 + Math.floor(Math.random() * 20 * 60);
+            nextSkillBookSpawnTime = 60 * 60 + Math.floor(Math.random() * 40 * 60); // 60-100秒
             flyingSpawnTimer = 0;
             nextFlyingSpawnTime = FLYING_MONSTER_SPAWN_MIN + Math.random() * (FLYING_MONSTER_SPAWN_MAX - FLYING_MONSTER_SPAWN_MIN);
             monsters = [];
