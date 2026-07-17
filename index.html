@@ -431,7 +431,7 @@
                 点击空格或者屏幕躲避怪兽
             </div>
            <button id="startBtn">开始游戏</button>
-           <div class="version">v1.9.18</div>
+           <div class="version">v1.9.19</div>
            <button id="resetHighScoreBtn" class="reset-highscore-btn">重置最高分</button>
         </div>
 
@@ -655,11 +655,11 @@
             jeepTimer: 0,
             jeepAmmo: 0,
             footballTimer: 0,
-            footballKicked: false,
+            footballKicked: true,   // 初始无球状态，true 表示场上没有滞留足球
             footballPending: false,
             footballRemainingOnJeep: 0,
             skillBooks: 0,
-            footballX: 0,
+            footballX: -100,        // 初始放在屏幕外，避免游戏开始时出现残影足球
             footballY: 0,
             footballVX: 0,
             footballVY: 0,
@@ -4029,9 +4029,11 @@
             player.jeepTimer = 0;
             player.jeepAmmo = 0;
             player.footballTimer = 0;
-            player.footballKicked = false;
+            player.footballKicked = true; // 重新开始时场上无滞留足球
             player.footballPending = false;
             player.footballRemainingOnJeep = 0;
+            player.footballX = -100;
+            player.footballY = 0;
             player.skillBooks = 0;
             player.width = PLAYER_WIDTH;
             player.height = PLAYER_HEIGHT;
