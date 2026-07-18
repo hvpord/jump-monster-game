@@ -445,7 +445,7 @@
             </div>
            <button id="startBtn">单人开始</button>
            <button id="coopBtn">双人游戏</button>
-           <div class="version">v2.0.0</div>
+           <div class="version">v2.0.2</div>
            <button id="resetHighScoreBtn" class="reset-highscore-btn">重置最高分</button>
         </div>
 
@@ -494,6 +494,8 @@
         const boomImg = new Image();
         const shieldImg = new Image();
         const uavImg = new Image();
+        const mumImg = new Image();
+        const mum2Img = new Image();
         shitouImg.src = 'shitou.png';
         duoduoImg.src = 'duoduo.png';
         jeepImg.src = 'jeep.png';
@@ -505,10 +507,12 @@
         boomImg.src = 'boom.png';
         shieldImg.src = 'shield.png';
         uavImg.src = 'UAV.png';
+        mumImg.src = 'mum.png';
+        mum2Img.src = 'mum2.png';
         let playerAvatar = null;
         let monsterAvatar = null;
         let avatarImagesReady = 0;
-        [shitouImg, duoduoImg, jeepImg, footballImg, camelImg, sheepImg, bookImg, roketImg, boomImg, shieldImg, uavImg].forEach(img => {
+        [shitouImg, duoduoImg, jeepImg, footballImg, camelImg, sheepImg, bookImg, roketImg, boomImg, shieldImg, uavImg, mumImg, mum2Img].forEach(img => {
             img.onload = () => { avatarImagesReady++; };
         });
 
@@ -752,8 +756,8 @@
         // ===== 随机分配头像角色 =====
         function pickAvatars() {
             if (gameMode === 'coop') {
-                // 双人模式：两个小人各用一个头像，怪兽使用原始贴图（不使用头像）
-                monsterAvatar = null;
+                // 双人模式：两个小人各用一个头像，怪兽在 mum.png / mum2.png 中随机混合
+                monsterAvatar = mumImg;
                 playerAvatar = shitouImg;
                 if (Math.random() < 0.5) {
                     player.avatar = 'shitou';
@@ -998,6 +1002,11 @@
 
                 this.animFrame = 0;
                 this.legAngle = 0;
+
+                // 头像贴图：双人模式在 mum.png / mum2.png 中随机，单人模式沿用当局分配的怪兽头像
+                this.avatar = gameMode === 'coop'
+                    ? (Math.random() < 0.5 ? mumImg : mum2Img)
+                    : monsterAvatar;
             }
 
             update() {
@@ -1083,12 +1092,12 @@
                     headRadius = this.width * 0.6;
                     headY = -this.height * 0.25;
                 }
-                if (gameMode !== 'coop' && avatarLoaded(monsterAvatar)) {
+                if (avatarLoaded(this.avatar)) {
                     ctx.save();
                     ctx.beginPath();
                     ctx.arc(0, headY, headRadius, 0, Math.PI * 2);
                     ctx.clip();
-                    ctx.drawImage(monsterAvatar, -headRadius, headY - headRadius, headRadius * 2, headRadius * 2);
+                    ctx.drawImage(this.avatar, -headRadius, headY - headRadius, headRadius * 2, headRadius * 2);
                     ctx.restore();
                 } else {
                     ctx.fillStyle = this.type === 'big' ? '#e74c3c' : '#ff6b6b';
