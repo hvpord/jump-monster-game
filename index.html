@@ -445,7 +445,7 @@
             </div>
            <button id="startBtn">单人开始</button>
            <button id="coopBtn">双人游戏</button>
-           <div class="version">v2.0.3</div>
+           <div class="version">v2.0.4</div>
            <button id="resetHighScoreBtn" class="reset-highscore-btn">重置最高分</button>
         </div>
 
@@ -2695,7 +2695,8 @@
                     ctx.restore();
                 };
                 drawDriver(frontAvatarImg(), jeepX + jeepW * 0.42);
-                if (gameMode === 'coop') {
+                // 双人模式：只有存活的后排角色才显示在车内
+                if (gameMode === 'coop' && !partner.isDead) {
                     drawDriver(avatarImg(partner.avatar), jeepX + jeepW * 0.22);
                 }
 
@@ -3836,10 +3837,25 @@
                 height: player.height - COLLISION_MARGIN_Y * 2
             };
 
-            // 道具拾取
+            // 道具拾取（前排优先）
             for (const item of items) {
                 if (!item.collected && rectsOverlap(playerHitbox, item.getHitbox())) {
                     collectItem(item);
+                }
+            }
+
+            // 双人模式：后排角色也能吃到前排漏下的道具（效果归前排持有/共享）
+            if (gameMode === 'coop' && !partner.isDead) {
+                const partnerItemBox = {
+                    x: partner.x + COLLISION_MARGIN_X,
+                    y: partner.y + COLLISION_MARGIN_Y,
+                    width: partner.width - COLLISION_MARGIN_X * 2,
+                    height: partner.height - COLLISION_MARGIN_Y * 2
+                };
+                for (const item of items) {
+                    if (!item.collected && rectsOverlap(partnerItemBox, item.getHitbox())) {
+                        collectItem(item);
+                    }
                 }
             }
 
